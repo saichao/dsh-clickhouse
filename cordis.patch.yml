@@ -1,0 +1,7 @@
+# dsh bundle patch：把本插件的 loader 行插进 profile 的层栈。
+#
+# 这里**不带 config**：连接信息属于部署方，应该写在 profile 的用户补丁层
+# （~/.dsh/profiles/<name>/cordis.patch.yml）里按 id 覆盖，而不是写进包里。
+- insert:
+    - id: clickhouse
+      name: 'dsh-clickhouse'

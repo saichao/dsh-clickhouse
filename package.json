@@ -1,0 +1,51 @@
+{
+  "name": "dsh-clickhouse",
+  "version": "0.1.0",
+  "description": "ClickHouse query tools for DSH / DeepSeek Harness: schema exploration plus guarded read-only SQL. 带只读护栏的 ClickHouse 数据问答插件，零运行时依赖。",
+  "author": "赛超",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "src",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "clickhouse",
+    "sql"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test test/sql-guard.test.ts test/format.test.ts test/plugin.test.ts",
+    "test:live": "node --import tsx --test test/live.test.ts",
+    "test:all": "pnpm test && pnpm test:live"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.12",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

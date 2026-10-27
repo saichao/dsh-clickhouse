@@ -1,0 +1,137 @@
+﻿插件目录: <profile>\.dsh\profiles\desktop\node_modules\dsh-clickhouse
+生效配置: {
+  "url": "http://<host>",
+  "user": "default",
+  "password": "",
+  "database": "default",
+  "readonly": true,
+  "maxRows": 200,
+  "timeoutSeconds": 300,
+  "sampleRows": 20,
+  "guidance": true
+}
+
+### clickhouse_list_databases {"like":"system"}
+数据库列表：1 行 / 25 ms
+
+- rows: 1 | limit: 200 | elapsed: 25 ms
+- query_id: dsh-clickhouse-databases-mvqd5ppn-1-9neazw
+- statistics: rows_read=10006, bytes_read=221535, server_elapsed=0.025376679s
+
+| database | engine | table_count | column_count |
+| --- | --- | --- | --- |
+| system | Atomic | 75 | 1263 |
+
+### clickhouse_list_tables {"database":"system","like":"table","limit":5}
+库 system 的表：3 行 / 2 ms
+
+> total_rows / total_bytes 来自 system.tables 的元数据估计，MergeTree 家族之外的表（如 View、Distributed）可能为 NULL。
+
+- rows: 3 | limit: 5 | elapsed: 2 ms
+- query_id: dsh-clickhouse-tables-mvqd5pud-2-zn2m3z
+- statistics: rows_read=75, bytes_read=7471, server_elapsed=0.002142162s
+
+| database | name | engine | sorting_key | total_rows | total_bytes | comment |
+| --- | --- | --- | --- | --- | --- | --- |
+| system | table_engines | SystemTableEngines |  | NULL | NULL |  |
+| system | table_functions | SystemTableFunctions |  | NULL | NULL |  |
+| system | tables | SystemTables |  | NULL | NULL |  |
+
+### clickhouse_search_columns {"pattern":"engine","limit":5}
+字段名匹配 "engine"：5 行 / 30 ms
+
+- rows: 5 | limit: 5 | elapsed: 30 ms
+- query_id: dsh-clickhouse-search-columns-mvqd5pv7-3-rtrvma
+- statistics: rows_read=9336, bytes_read=1175833, server_elapsed=0.029761912s
+
+| database | table | name | type | position | comment |
+| --- | --- | --- | --- | --- | --- |
+| system | databases | engine | String | 2 |  |
+| system | parts | engine | String | 32 |  |
+| system | parts_columns | engine | String | 28 |  |
+| system | projection_parts | engine | String | 37 |  |
+| system | projection_parts_columns | engine | String | 36 |  |
+
+### clickhouse_describe_table {"table":"system.tables"}
+system.tables 的字段：29 行 / 1 ms
+
+- rows: 29 | limit: 200 | elapsed: 1 ms
+- query_id: dsh-clickhouse-describe-mvqd5pwk-4-1faf7l
+- statistics: rows_read=29, bytes_read=3132, server_elapsed=0.001427438s
+
+| name | type | default_kind | default_expression | is_in_primary_key | is_in_sorting_key | comment |
+| --- | --- | --- | --- | --- | --- | --- |
+| database | String |  |  | 0 | 0 |  |
+| name | String |  |  | 0 | 0 |  |
+| uuid | UUID |  |  | 0 | 0 |  |
+| engine | String |  |  | 0 | 0 |  |
+| is_temporary | UInt8 |  |  | 0 | 0 |  |
+| data_paths | Array(String) |  |  | 0 | 0 |  |
+| metadata_path | String |  |  | 0 | 0 |  |
+| metadata_modification_time | DateTime |  |  | 0 | 0 |  |
+| dependencies_database | Array(String) |  |  | 0 | 0 |  |
+| dependencies_table | Array(String) |  |  | 0 | 0 |  |
+| create_table_query | String |  |  | 0 | 0 |  |
+| engine_full | String |  |  | 0 | 0 |  |
+| as_select | String |  |  | 0 | 0 |  |
+| partition_key | String |  |  | 0 | 0 |  |
+…（共 37 行）
+
+### clickhouse_sample_rows {"table":"system.tables","rows":2,"columns":["name","engine","total_rows"]}
+system.tables 抽样：2 行 / 1 ms
+
+- rows: 2 | limit: 2 | elapsed: 1 ms
+- query_id: dsh-clickhouse-sample-mvqd5px6-5-qjcfcf
+- statistics: rows_read=2, bytes_read=77, server_elapsed=0.001231479s
+
+| name | engine | total_rows |
+| --- | --- | --- |
+| COLUMNS | View | NULL |
+| SCHEMATA | View | NULL |
+
+### clickhouse_query {"sql":"SELECT 1 AS 行数"}
+执行失败：ClickHouse 错误 62（SYNTAX_ERROR）
+Code: 62. DB::Exception: Syntax error: failed at position 29 ('�') (line 2, col 13): 行数
+) LIMIT 201. Unrecognized token: '�'. (SYNTAX_ERROR) (version 21.12.4.1 (official build))
+提示：ClickHouse 不接受未加引号的非 ASCII（中文）标识符或别名——请用反引号包起来，例如 SELECT count() AS [反引号]行数[反引号] FROM t。
+
+### clickhouse_query {"sql":"SELECT 1 AS `行数`"}
+查询完成：1 行 / 1 ms
+
+- rows: 1 | limit: 200 | elapsed: 1 ms
+- query_id: dsh-clickhouse-query-mvqd5pye-7-ybzrm1
+- statistics: rows_read=1, bytes_read=1, server_elapsed=0.0012233s
+- executed_sql: SELECT * FROM ( SELECT 1 AS `行数` ) LIMIT 201
+
+| 行数 |
+| --- |
+| 1 |
+
+### clickhouse_query {"sql":"SELECT database AS `库`, count() AS `表数` FROM system.tables WHERE database LIKE 'system%' GROUP BY database ORDER BY `表数` DESC LIMIT 5"}
+查询完成：1 行 / 2 ms
+
+- rows: 1 | limit: 200 | elapsed: 2 ms
+- query_id: dsh-clickhouse-query-mvqd5pyu-8-qcc351
+- statistics: rows_read=75, bytes_read=1125, server_elapsed=0.001761516s
+- executed_sql: SELECT * FROM ( SELECT database AS `库`, count() AS `表数` FROM system.tables WHERE database LIKE 'system%' GROUP BY database ORDER BY `表数` DESC LIMIT 5 ) LIMIT 201
+
+| 库 | 表数 |
+| --- | --- |
+| system | 75 |
+
+### clickhouse_explain {"sql":"SELECT count() FROM system.tables"}
+EXPLAIN PLAN：5 行 / 2 ms
+
+- rows: 5 | limit: 200 | elapsed: 2 ms
+- query_id: dsh-clickhouse-query-mvqd5pzb-9-nn6mzb
+- statistics: rows_read=5, bytes_read=248, server_elapsed=0.001549918s
+
+| explain |
+| --- |
+| Expression ((Projection + Before ORDER BY)) |
+|   Aggregating |
+|     Expression (Before GROUP BY) |
+|       SettingQuotaAndLimits (Set limits and quota after reading from storage) |
+|         ReadFromStorage (SystemTables) |
+
+

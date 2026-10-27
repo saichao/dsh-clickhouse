@@ -1,0 +1,15 @@
+# 依赖与产物
+node_modules/
+*.tgz
+
+# 本机私人物料：profile 配置备份、从 app.asar 反解出来的参考源码
+backups/
+_ref/
+
+# 编辑器/系统噪音
+.DS_Store
+Thumbs.db
+*.log
+pnpm-debug.log*
+.vscode/
+.idea/
