@@ -70,7 +70,7 @@ test("插件导出 DSH 契约要求的字段", () => {
 
 test("apply() 注册 7 个工具，并把说明注入系统提示", () => {
   const { ctx, registered, sections } = makeContext();
-  apply(ctx, { url: "http://10.0.0.34:8123", database: "default" });
+  apply(ctx, { url: "http://localhost:8123", database: "default" });
 
   const names = registered.map((tool) => tool.name);
   assert.deepEqual(names, [
