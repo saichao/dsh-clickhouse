@@ -23,7 +23,7 @@
 
 ```powershell
 cd 'E:\桌面备份\sjwd\dsh-clickhouse'
-git remote add origin https://github.com/<owner>/dsh-clickhouse.git
+git remote add origin https://github.com/saichao/dsh-clickhouse.git
 git branch -M main
 git push -u origin main
 ```
@@ -35,11 +35,11 @@ git push -u origin main
 ## 二、条目文件（等仓库满 1 天后提 PR）
 
 Fork `awesome-dsh-plugin/awesome-dsh-plugin`，新建文件
-`data/plugins/<owner>__dsh-clickhouse.yml`：
+`data/plugins/saichao__dsh-clickhouse.yml`：
 
 ```yaml
-url: https://github.com/<owner>/dsh-clickhouse
-name: <owner>/dsh-clickhouse
+url: https://github.com/saichao/dsh-clickhouse
+name: saichao/dsh-clickhouse
 category: tools
 description:
   en: ClickHouse query tools for DSH, and the only entry here that targets ClickHouse alone: seven tools that list databases, tables and columns, sample rows, search columns by name, show EXPLAIN plans, and run single read-only SQL statements behind a client-side guard that rejects writes, multi-statement SQL and external table functions. Zero runtime dependencies; it tells the model to backtick non-ASCII aliases instead of failing with a bare syntax error on older servers.
@@ -48,7 +48,7 @@ description:
 
 要点：
 
-- 文件名必须是 `<owner>__<repo>.yml`（两个下划线）。
+- 文件名必须是 `saichao__<repo>.yml`（两个下划线）。
 - `description` 里含 `: `（ASCII 冒号+空格）必须加引号——上面的文案是中文全角冒号，没有这个问题。
 - **不要**写 `npm:` 字段：映射由 registry 自动采集，手写会被校验拒绝。
 - 仓库满 1 天前提 PR 会被 CI 拦（`Repo age`）。
@@ -56,7 +56,7 @@ description:
 PR 标题与说明：
 
 ```
-Add <owner>/dsh-clickhouse — ClickHouse query tools for DSH
+Add saichao/dsh-clickhouse — ClickHouse query tools for DSH
 
 - 7 tools: list databases / list tables / describe table / sample rows / search columns / EXPLAIN / read-only SQL
 - declares dsh.bundle in package.json with cordis.patch.yml at the repo root
@@ -64,7 +64,7 @@ Add <owner>/dsh-clickhouse — ClickHouse query tools for DSH
 - read-only in two layers: client-side SQL guard (single statement, leading keyword allowlist, write-keyword rejection, no INTO OUTFILE / FORMAT / SETTINGS / external table functions) + server-side max_result_rows / max_execution_time / max_memory_usage
 - verified against ClickHouse 21.12; 47 offline tests and 14 live tests pass
 
-Tested with `dsh plugin --profile desktop add github:<owner>/dsh-clickhouse` on DSH 0.2.1-rc.2 (Windows).
+Tested with `dsh plugin --profile desktop add github:saichao/dsh-clickhouse` on DSH 0.2.1-rc.2 (Windows).
 ```
 
 ## 三、可选：发布到 npm

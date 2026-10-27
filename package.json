@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "ClickHouse query tools for DSH / DeepSeek Harness: schema exploration plus guarded read-only SQL. 带只读护栏的 ClickHouse 数据问答插件，零运行时依赖。",
   "author": "赛超",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saichao/dsh-clickhouse.git"
+  },
+  "homepage": "https://github.com/saichao/dsh-clickhouse#readme",
+  "bugs": {
+    "url": "https://github.com/saichao/dsh-clickhouse/issues"
+  },
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
