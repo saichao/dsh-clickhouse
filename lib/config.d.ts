@@ -65,3 +65,12 @@ export declare function resolveConfig(raw: unknown): ClickHousePluginConfig;
 export declare function describeConnection(config: ClickHousePluginConfig): string;
 /** 连接信息里不能泄露密码，日志展示用。 */
 export declare function describeConnectionForLog(config: ClickHousePluginConfig): string;
+/**
+ * 是否还在用「什么都没填」的默认连接。
+ *
+ * 默认连接意味着部署方大概率还没配置：这时连不上必须顺带告诉用户去哪儿写配置，
+ * 否则新用户只会看到一句连接失败。
+ */
+export declare function isDefaultConnection(config: ClickHousePluginConfig): boolean;
+/** 「还没配置连接」的指引：错误信息与系统提示共用同一段文字，避免两处走样。 */
+export declare function configurationHint(): string;

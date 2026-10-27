@@ -255,5 +255,34 @@ export function describeConnection(config: ClickHousePluginConfig): string {
 
 /** 连接信息里不能泄露密码，日志展示用。 */
 export function describeConnectionForLog(config: ClickHousePluginConfig): string {
-  return describeConnection(config).replace(config.password, "***");
+  // 密码为空时 String.replace 会在开头插进一个 ***，所以只在真有密码时替换。
+  if (config.password.length === 0) return describeConnection(config);
+  return describeConnection(config).split(config.password).join("***");
+}
+
+/**
+ * 是否还在用「什么都没填」的默认连接。
+ *
+ * 默认连接意味着部署方大概率还没配置：这时连不上必须顺带告诉用户去哪儿写配置，
+ * 否则新用户只会看到一句连接失败。
+ */
+export function isDefaultConnection(config: ClickHousePluginConfig): boolean {
+  return (
+    config.url === DEFAULT_CONFIG.url &&
+    config.user === DEFAULT_CONFIG.user &&
+    config.password === DEFAULT_CONFIG.password
+  );
+}
+
+/** 「还没配置连接」的指引：错误信息与系统提示共用同一段文字，避免两处走样。 */
+export function configurationHint(): string {
+  return [
+    "还没配置 ClickHouse 连接。请在 profile 的用户补丁层写连接信息：",
+    "  ~/.dsh/profiles/<profile>/cordis.patch.yml",
+    "  - id: clickhouse",
+    "    name: dsh-clickhouse",
+    "    config: { url: http://<主机>:8123, user: default, password: '' }",
+    "也可以给插件配置 host / port（或 CLICKHOUSE_HOST / CLICKHOUSE_PORT）；",
+    "详见插件 README 的「配置」一节。改完需要重启 DSH。",
+  ].join("\n");
 }

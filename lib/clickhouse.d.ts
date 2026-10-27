@@ -8,7 +8,7 @@
  * @module dsh-clickhouse/clickhouse
  */
 import { UserError } from "./errors.js";
-import type { ClickHousePluginConfig } from "./config.js";
+import { type ClickHousePluginConfig } from "./config.js";
 /** 服务端返回的查询统计。 */
 export interface QueryStatistics {
     rows_read?: number;
@@ -50,6 +50,16 @@ export declare class ClickHouseQueryError extends UserError {
 }
 /** 把服务端的纯文本错误体解析成带错误码的异常。 */
 export declare function parseServerError(text: string): ClickHouseQueryError | null;
+/**
+ * 连接层失败的友好提示。
+ *
+ * `text` 已经展开过 `error.cause`（见 `describeThrown`），所以这里能认出 undici 藏在
+ * cause 里的 ECONNREFUSED / ENOTFOUND / 超时，而不是一律落到最后那句 "fetch failed"。
+ * 用着默认地址时再补一段「去哪儿写配置」——新用户就是卡在这里。
+ *
+ * 导出仅为便于测试。
+ */
+export declare function describeNetworkError(error: unknown, config: ClickHousePluginConfig): UserError;
 /** 把库级/库名非法等错误统一成可读提示。 */
 export declare function assertDatabaseAllowed(config: ClickHousePluginConfig, database: string): void;
 /** 生成 ClickHouse 的反引号标识符，同时挡住注入。 */

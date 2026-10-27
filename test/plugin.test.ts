@@ -17,7 +17,7 @@ import { test } from "node:test";
 
 import { apply, inject, name as pluginName } from "../src/index.js";
 import { createClickHouseTools } from "../src/tools.js";
-import { ClickHouseGateway } from "../src/clickhouse.js";
+import { ClickHouseGateway, describeNetworkError } from "../src/clickhouse.js";
 import { resolveConfig } from "../src/config.js";
 import { validate } from "./schema-check.js";
 import type { ToolDefinitionLike } from "../src/types.js";
@@ -88,6 +88,38 @@ test("apply() 注册 7 个工具，并把说明注入系统提示", () => {
   // 注入的提示里应带上本次配置的地址（这里就是上面传进去的那个），而不是写死某个部署地址。
   assert.match(sections[0]?.text ?? "", /连接：http:\/\/localhost:8123/);
   assert.match(sections[0]?.text ?? "", /单条只读语句/);
+});
+
+test("默认连接时，系统提示里提前给出配置指引", () => {
+  const blank = makeContext();
+  apply(blank.ctx, {});
+  assert.match(blank.sections[0]?.text ?? "", /还没配置/);
+
+  const configured = makeContext();
+  apply(configured.ctx, { url: "http://10.0.0.34:8123" });
+  assert.doesNotMatch(configured.sections[0]?.text ?? "", /还没配置/);
+});
+
+test("连接失败提示展开 error.cause，并在未配置时带上配置指引", () => {
+  // undici 的真实形状：外层只有 TypeError: fetch failed，真正的原因在 cause 里。
+  const refused = Object.assign(new TypeError("fetch failed"), {
+    cause: Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:8123"), { code: "ECONNREFUSED" }),
+  });
+
+  const unconfigured = describeNetworkError(refused, resolveConfig({})).message;
+  // 认出 cause 里的 ECONNREFUSED，才走得到"连接被拒绝"这句；否则只会是一句 fetch failed。
+  assert.match(unconfigured, /连接被拒绝/);
+  assert.match(unconfigured, /还没配置 ClickHouse 连接/);
+
+  // 认不出的网络错误也要把 cause 原样带出来，而不是只剩 "fetch failed"。
+  const odd = Object.assign(new TypeError("fetch failed"), { cause: new Error("socket hang up") });
+  const oddText = describeNetworkError(odd, resolveConfig({ url: "http://10.0.0.34:8123" })).message;
+  assert.match(oddText, /socket hang up/);
+
+  // 已经配了地址就不该再劝人去写配置。
+  const configured = describeNetworkError(refused, resolveConfig({ url: "http://10.0.0.34:8123" })).message;
+  assert.match(configured, /连接被拒绝/);
+  assert.doesNotMatch(configured, /还没配置 ClickHouse 连接/);
 });
 
 test("每个工具都符合注册表契约：schema 齐备、输出声明存在、只读工具可并发", () => {

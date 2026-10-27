@@ -10,7 +10,7 @@
 
 import { ClickHouseErrorCode, describeThrown, UserError } from "./errors.js";
 import { applyRowLimit, inspectStatement, isWrappable, wrapWithRowLimit, type GuardedStatement } from "./sql-guard.js";
-import type { ClickHousePluginConfig } from "./config.js";
+import { configurationHint, isDefaultConnection, type ClickHousePluginConfig } from "./config.js";
 
 /** 服务端返回的查询统计。 */
 export interface QueryStatistics {
@@ -89,24 +89,31 @@ export function parseServerError(text: string): ClickHouseQueryError | null {
   return new ClickHouseQueryError(code, errorType, trimmed, readonly);
 }
 
-/** 连接层失败的友好提示。 */
-function describeNetworkError(error: unknown, url: string): UserError {
+/**
+ * 连接层失败的友好提示。
+ *
+ * `text` 已经展开过 `error.cause`（见 `describeThrown`），所以这里能认出 undici 藏在
+ * cause 里的 ECONNREFUSED / ENOTFOUND / 超时，而不是一律落到最后那句 "fetch failed"。
+ * 用着默认地址时再补一段「去哪儿写配置」——新用户就是卡在这里。
+ *
+ * 导出仅为便于测试。
+ */
+export function describeNetworkError(error: unknown, config: ClickHousePluginConfig): UserError {
   const text = describeThrown(error);
+  const url = config.url;
+  let message: string;
   if (/ECONNREFUSED/i.test(text)) {
-    return new UserError(
-      `无法连接 ClickHouse（${url}）：连接被拒绝。请确认服务已启动、端口是 HTTP 接口（默认 8123）而不是原生 TCP 端口（9000）。`,
-    );
+    message = `无法连接 ClickHouse（${url}）：连接被拒绝。请确认服务已启动、端口是 HTTP 接口（默认 8123）而不是原生 TCP 端口（9000）。`;
+  } else if (/ENOTFOUND|EAI_AGAIN/i.test(text)) {
+    message = `无法解析 ClickHouse 主机名（${url}）：${text}`;
+  } else if (/ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|CONNECT_TIMEOUT/i.test(text)) {
+    message = `连接 ClickHouse 超时（${url}）：${text}`;
+  } else if (/aborted|AbortError/i.test(text)) {
+    message = `ClickHouse 查询已中断（${url}）：${text}`;
+  } else {
+    message = `访问 ClickHouse 失败（${url}）：${text}`;
   }
-  if (/ENOTFOUND|EAI_AGAIN/i.test(text)) {
-    return new UserError(`无法解析 ClickHouse 主机名（${url}）：${text}`);
-  }
-  if (/ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|CONNECT_TIMEOUT/i.test(text)) {
-    return new UserError(`连接 ClickHouse 超时（${url}）：${text}`);
-  }
-  if (/aborted|AbortError/i.test(text)) {
-    return new UserError(`ClickHouse 查询已中断（${url}）：${text}`);
-  }
-  return new UserError(`访问 ClickHouse 失败（${url}）：${text}`);
+  return new UserError(isDefaultConnection(config) ? `${message}\n${configurationHint()}` : message);
 }
 
 /** 去掉反引号/引号里的内容后，SQL 里是否还有非 ASCII 字符。 */
@@ -223,7 +230,7 @@ export class ClickHouseGateway {
           `查询超过客户端上限 ${this.config.timeoutSeconds + 15}s 仍未返回，已中止。请缩小数据范围或改用聚合。`,
         );
       }
-      throw describeNetworkError(error, this.config.url);
+      throw describeNetworkError(error, this.config);
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener("abort", forward);

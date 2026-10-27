@@ -18,9 +18,12 @@ export declare function asClickHouseError(error: unknown): {
 } | null;
 export declare function describeError(error: unknown): string;
 /**
- * Readable text for any thrown value.
- * `AggregateError` (Node's dual-stack connect failures) carries an empty message,
- * so fall back to its first meaningful nested error.
+ * 可读文本，并展开 `error.cause`（最多三层）。
+ *
+ * undici 的网络失败外层永远只是 `TypeError: fetch failed`，真正的原因
+ * （`connect ECONNREFUSED 127.0.0.1:8123`、`getaddrinfo ENOTFOUND`、超时）在 `cause` 里。
+ * 不展开的话，连接被拒、域名解析失败、超时全都长成同一句 "fetch failed"：调用方既分不出
+ * 原因，也匹配不到下面 `describeNetworkError` 里的友好提示。
  */
 export declare function describeThrown(error: unknown): string;
 export declare function isReadonlySettingRejection(error: unknown): boolean;

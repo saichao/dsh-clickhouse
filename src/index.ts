@@ -20,7 +20,12 @@
  */
 
 import { ClickHouseGateway } from "./clickhouse.js";
-import { describeConnection, resolveConfig, type ClickHousePluginConfig } from "./config.js";
+import {
+  describeConnection,
+  isDefaultConnection,
+  resolveConfig,
+  type ClickHousePluginConfig,
+} from "./config.js";
 import { createClickHouseTools } from "./tools.js";
 import type { PluginContextLike } from "./types.js";
 
@@ -35,6 +40,12 @@ function guidance(config: ClickHousePluginConfig): string {
   return [
     "## ClickHouse 数据问答（插件 dsh-clickhouse）",
     `连接：${describeConnection(config)}。`,
+    // 默认连接 = 部署方还没配。提前告诉模型，别等第一次查询失败才发现。
+    ...(isDefaultConnection(config)
+      ? [
+          "⚠️ 上面这个是默认连接，说明插件还没配置。查询报连接失败时不要反复重试：直接告诉用户去 profile 的用户补丁层（`~/.dsh/profiles/<profile>/cordis.patch.yml`）加一段 `- id: clickhouse` / `name: dsh-clickhouse` / `config: { url: http://<主机>:8123, user: default, password: '' }`，改完重启 DSH。",
+        ]
+      : []),
     "",
     "推荐路径：clickhouse_list_databases → clickhouse_list_tables → clickhouse_describe_table → clickhouse_sample_rows → clickhouse_query。",
     "不知道该看哪张表时：clickhouse_search_columns 按字段名搜（例如「订单号」「手机号」），clickhouse_list_tables 的 like 按表名搜。",

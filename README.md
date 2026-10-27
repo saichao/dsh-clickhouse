@@ -12,6 +12,30 @@ dsh plugin --profile <profile> add github:<owner>/dsh-clickhouse
 
 配置、工具清单、只读护栏的范围、以及本机验证记录见下文。
 
+## 三步上手（新用户）
+
+1. **装**：DSH 里 **设置 → 插件**（插件市场）搜 `clickhouse` → 选 `dsh-clickhouse` → 安装。
+   命令行等价写法：`dsh plugin --profile <profile> add github:saichao/dsh-clickhouse`
+2. **启用 + 重启**：装完在市场里点「启用」，然后重启 DSH。
+3. **配连接**：把下面这段写进 profile 的用户补丁层，再重启一次（写法详见「配置」一节）：
+
+```yaml
+- id: clickhouse
+  name: dsh-clickhouse
+  config: { url: http://<主机>:8123, user: default, password: '' }
+```
+
+漏了第 3 步会得到很明确的报错，而不是一句 `fetch failed`：
+
+```
+无法连接 ClickHouse（http://localhost:8123）：连接被拒绝。请确认服务已启动、端口是 HTTP 接口（默认 8123）而不是原生 TCP 端口（9000）。
+还没配置 ClickHouse 连接。请在 profile 的用户补丁层写连接信息：
+  ~/.dsh/profiles/<profile>/cordis.patch.yml
+  - id: clickhouse
+    name: dsh-clickhouse
+    config: { url: http://<主机>:8123, user: default, password: '' }
+```
+
 ## 它是什么
 
 给 **DSH / DeepSeek Harness** 用的 ClickHouse 数据问答插件：把「库表结构探查 + 带护栏的只读 SQL 执行」变成 agent 可以直接调用的工具，用来做自然语言问数。
@@ -39,7 +63,7 @@ node scripts/install.mjs
 3. 确保 `dsh-clickhouse` 在 profile `package.json` 的 `dsh.profile.bundles` 里（**改动前备份到 `backups/`**，临时文件 + rename 原子写）；
 4. 跑 `scripts/verify.mjs` 预检。
 
-然后重启 DSH——或者按下面「配置」一节把那行写进用户补丁层，DSH 的 HMR 会立刻重组，不用重启。
+然后重启 DSH。补丁文件是外部改的，宿主不会热加载它（实测桌面端改完不重启，插件仍按旧配置工作），配置改动一律重启后确认。
 
 **回滚**：`node scripts/uninstall.mjs`（从 `dsh.profile.bundles` 摘掉 + 删两份拷贝；删目录前会核对 `package.json.name`，`--dry-run` 只看不做）。
 
