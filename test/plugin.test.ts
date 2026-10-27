@@ -85,7 +85,8 @@ test("apply() 注册 7 个工具，并把说明注入系统提示", () => {
 
   assert.equal(sections.length, 1);
   assert.equal(sections[0]?.name, "plugin:clickhouse");
-  assert.match(sections[0]?.text ?? "", /10\.0\.0\.34:8123/);
+  // 注入的提示里应带上本次配置的地址（这里就是上面传进去的那个），而不是写死某个部署地址。
+  assert.match(sections[0]?.text ?? "", /连接：http:\/\/localhost:8123/);
   assert.match(sections[0]?.text ?? "", /单条只读语句/);
 });
 
