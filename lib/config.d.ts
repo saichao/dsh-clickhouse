@@ -28,6 +28,11 @@ export interface ClickHousePluginConfig {
     allowQuerySettings: boolean;
     /** 是否允许 file()/url()/s3() 等外部数据源表函数。 */
     allowExternalSources: boolean;
+    /**
+     * 是否允许 JOIN / UNION / 一次引用多张表。默认 false：本插件按「单表查询」使用，
+     * 业务判断交给模型，插件不预设任何跨表流程。
+     */
+    allowCrossTable: boolean;
     /** 只允许访问这些库（为空表示不限制）。 */
     allowDatabases: string[];
     /** 禁止访问这些库。 */

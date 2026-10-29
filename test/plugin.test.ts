@@ -19,6 +19,7 @@ import { apply, inject, name as pluginName } from "../src/index.js";
 import { createClickHouseTools } from "../src/tools.js";
 import { ClickHouseGateway, describeNetworkError } from "../src/clickhouse.js";
 import { resolveConfig } from "../src/config.js";
+import { extractTableReferences, inspectStatement } from "../src/sql-guard.js";
 import { validate } from "./schema-check.js";
 import type { ToolDefinitionLike } from "../src/types.js";
 
@@ -250,4 +251,95 @@ test("输出 schema 能约束真实返回值形状（用一个仿造的 outcome 
   // format: "json" 走另一条渲染分支。
   const asJson = query.output.render({ format: "json" }, value);
   assert.match(asJson[0]?.text ?? "", /"rowCount": 1/);
+});
+
+test("单表护栏按「引用的表」判定，不按 WHERE 条件个数", () => {
+  const guard = {
+    allowExternalSources: false,
+    allowQuerySettings: false,
+    allowCrossTable: false,
+    defaultDatabase: "default",
+  };
+
+  // 必须放行：同表多字段 AND、多字段 OR、同表子查询、ARRAY JOIN、显式库名
+  const allowed = [
+    "SELECT patent_no FROM open_api_patent.dim_patent_main WHERE title LIKE '%地址%' AND holder_first LIKE '%畅远%'",
+    "SELECT patent_no FROM open_api_patent.dim_patent_main WHERE title LIKE '%地址%' OR holder LIKE '%地址%' OR abstr LIKE '%地址%'",
+    "SELECT patent_no FROM open_api_patent.dim_patent_main WHERE patent_no IN (SELECT patent_no FROM open_api_patent.dim_patent_main WHERE title LIKE '%地址%')",
+    "SELECT name, arrayJoin(tags) AS tag FROM open_api_enterprise.db_enterprise_t_enterprise ARRAY JOIN tags",
+    "SELECT database, name FROM system.tables WHERE database = 'default'",
+    "WITH t AS (SELECT patent_no FROM open_api_patent.dim_patent_main) SELECT patent_no FROM t",
+    "SELECT patent_no FROM open_api_patent.dim_patent_main WHERE title LIKE '%a%' UNION ALL SELECT patent_no FROM open_api_patent.dim_patent_main WHERE title LIKE '%b%'",
+  ];
+  for (const sql of allowed) {
+    assert.doesNotThrow(() => inspectStatement(sql, guard), sql);
+  }
+
+  // 必须拒绝：JOIN（含 self-join 语义）、跨表子查询、跨表 UNION、CTE 之外的第二个表
+  const rejected: [string, RegExp][] = [
+    [
+      "SELECT a.patent_no FROM open_api_patent.dim_patent_main AS a LEFT JOIN open_api_patent.dwd_patent_belong_holder AS b ON a.patent_no = b.patent_no",
+      /单表/,
+    ],
+    [
+      "SELECT patent_no FROM open_api_patent.dim_patent_main WHERE patent_no IN (SELECT patent_no FROM open_api_trademark.dim_trademark_main)",
+      /单表/,
+    ],
+    [
+      "SELECT name FROM open_api_enterprise.db_enterprise_t_enterprise UNION ALL SELECT reg_namecn FROM open_api_trademark.dim_trademark_main",
+      /单表/,
+    ],
+    [
+      "WITH t AS (SELECT patent_no FROM open_api_patent.dim_patent_main) SELECT * FROM t AS x, open_api_trademark.dim_trademark_main AS y",
+      /单表/,
+    ],
+  ];
+  for (const [sql, pattern] of rejected) {
+    assert.throws(() => inspectStatement(sql, guard), pattern, sql);
+  }
+
+  // allowCrossTable: true 时 JOIN 放行
+  assert.doesNotThrow(() => inspectStatement(rejected[0]![0], { ...guard, allowCrossTable: true }));
+
+  // 表名提取：注释/字符串里的 FROM 不算，CTE 名不算，带空格的标识符算
+  assert.deepEqual(
+    extractTableReferences("SELECT * FROM `odd table` WHERE a LIKE 'from x' -- FROM fake\n", "default"),
+    ["odd table"],
+  );
+  assert.equal(extractTableReferences("SELECT * FROM t1 AS a JOIN t2 AS b ON a.x = b.x", "default").length, 2);
+  assert.deepEqual(extractTableReferences("SELECT * FROM db1.t, db2.t", "default").length, 2);
+});
+
+test("单表护栏默认开启，可通过 allowCrossTable 放开", () => {
+  assert.equal(resolveConfig({}).allowCrossTable, false);
+  assert.equal(resolveConfig({ allowCrossTable: true }).allowCrossTable, true);
+  assert.equal(resolveConfig({ allowCrossTable: "yes" }).allowCrossTable, false);
+  assert.ok(resolveConfig({ allowCrossTable: "yes" }).warnings.some((item) => /allowCrossTable/.test(item)));
+});
+
+test("工具层：跨表 SQL 被拒且提示可放开", async () => {
+  const { ctx, registered } = makeContext();
+  apply(ctx, liveConfig);
+  const query = registered.find((tool) => tool.name === "clickhouse_query");
+  assert.ok(query);
+
+  await assert.rejects(
+    () => query.execute({ sql: "SELECT a.x FROM t1 AS a JOIN t2 AS b ON a.x = b.x" }, fakeExec),
+    /单表/,
+  );
+  await assert.rejects(
+    () =>
+      query.execute(
+        { sql: "SELECT x FROM open_api_patent.dim_patent_main WHERE x IN (SELECT y FROM open_api_trademark.dim_trademark_main)" },
+        fakeExec,
+      ),
+    /单表/,
+  );
+
+  // 提示里要说清怎么放开，否则用户只能看见一句「被拒绝」。
+  const reason = await query
+    .execute({ sql: "SELECT a.x FROM t1 AS a JOIN t2 AS b ON a.x = b.x" }, fakeExec)
+    .then(() => "")
+    .catch((error: Error) => error.message);
+  assert.match(reason, /allowCrossTable/);
 });

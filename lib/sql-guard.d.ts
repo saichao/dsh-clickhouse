@@ -4,7 +4,26 @@ export interface GuardOptions {
     allowExternalSources: boolean;
     /** Allow a trailing `SETTINGS ...` clause. Default false. */
     allowQuerySettings: boolean;
+    /**
+     * Allow JOIN / set operators / references to more than one table. Default false.
+     *
+     * 注意「单表」是按**引用的表**判定的，不是按 WHERE 条件个数：同表多字段 AND/OR、
+     * 同一张表的子查询都算单表，必须放行。
+     */
+    allowCrossTable: boolean;
+    /** 用于把不带库名的表名解析成完整表名（`db.t` 与 `t` 视为同一张表）。 */
+    defaultDatabase?: string;
 }
+/**
+ * 列出 SQL 引用到的表（去重，忽略 CTE 名、派生表别名与 ARRAY JOIN 的数组列）。
+ *
+ * 只看「引用了哪些表」，所以有几个 WHERE 条件、用了多少字段、是不是子查询都不影响结论：
+ * `字段A LIKE '%x%' AND 字段B LIKE '%x%'`、多字段 OR、同表子查询都只算一张表。
+ *
+ * 实现上先定位每个 FROM / JOIN，再解析它后面的表列表（`t`、`db.t`、`` `带空格的表` ``、
+ * `t1, t2`、`t AS x` 都认），遇到顶层子句关键字（WHERE / GROUP / ON / …）就结束。
+ */
+export declare function extractTableReferences(sql: string, defaultDatabase?: string): string[];
 export interface GuardedStatement {
     /** Statement with trailing comments/whitespace removed and trailing `;` stripped. */
     sql: string;

@@ -108,6 +108,7 @@ Copy-Item package.json, cordis.patch.yml, README.md, lib -Recurse -Force "$profi
 | `maxCellChars` | `400` | 单个单元格保留的最大字符数。 |
 | `allowQuerySettings` | `false` | 是否允许 SQL 自带 `SETTINGS ...`。 |
 | `allowExternalSources` | `false` | 是否允许 `file()`/`url()`/`s3()` 等外部数据源表函数。 |
+| `allowCrossTable` | `false` | 是否允许 JOIN / UNION / 一次引用多张表。默认 `false`：本插件按**单表查询**使用——用户给什么参数就用什么参数，跨表的业务判断不写进插件。 |
 | `allowDatabases` | `[]` | 只允许访问这些库（空 = 不限制）。 |
 | `denyDatabases` | `[]` | 禁止访问的库（优先级高于白名单）。 |
 | `sampleRows` | `20` | `clickhouse_sample_rows` 的默认抽样行数。 |
@@ -196,7 +197,26 @@ $env:ELECTRON_RUN_AS_NODE = '1'
 3. 任何位置出现 `INSERT`/`UPDATE`/`DELETE`/`ALTER`/`CREATE`/`DROP`/`TRUNCATE`/`RENAME`/`ATTACH`/`DETACH`/`OPTIMIZE`/`GRANT`/`REVOKE`/`KILL` 等写关键字即拒绝（同名标识符可用反引号包起来）；
 4. 拒绝 `INTO OUTFILE` / `INTO DUMPFILE`；
 5. 拒绝 SQL 自带的 `FORMAT ...`（结果格式由插件控制）与 `SETTINGS ...`（除非 `allowQuerySettings`）；
-6. 默认拒绝 `file()`/`url()`/`remote()`/`s3()`/`jdbc()`/`mysql()` 等外部数据源表函数（除非 `allowExternalSources`）。
+6. 默认拒绝 `file()`/`url()`/`remote()`/`s3()`/`jdbc()`/`mysql()` 等外部数据源表函数（除非 `allowExternalSources`）；
+7. 默认**只允许单表查询**：出现 `JOIN`、或引用了第二张不同的表（含跨表子查询、跨表 `UNION`）即拒绝（除非 `allowCrossTable`）。
+
+第 7 条是按「SQL 引用了哪些表」判定的，**不是按 WHERE 条件个数**：
+
+```sql
+-- ✅ 放行：一张表，多个字段、多个条件
+SELECT patent_no, title FROM open_api_patent.dim_patent_main
+WHERE title LIKE '%地址%' AND holder_first LIKE '%畅远%'
+   OR abstr LIKE '%地址%';
+
+-- ✅ 放行：同一张表的子查询、ARRAY JOIN、`t1, t2` 同表两次
+SELECT patent_no FROM t WHERE patent_no IN (SELECT patent_no FROM t WHERE title LIKE '%x%');
+
+-- ⛔ 拒绝：JOIN / 第二条不同的表 / 跨表子查询
+SELECT p.title FROM open_api_patent.dim_patent_main AS p
+JOIN open_api_enterprise.db_enterprise_t_enterprise AS e ON p.patent_no = e.credit_no;
+```
+
+设计取舍：单表限制让「查什么表」完全由用户给的参数决定，插件不预设任何业务流程（比如「企业名先换信用代码再查别的表」）。代价是名称类字段没有索引，`LIKE '%参数%'` 会是全表扫——这是**透明 > 聪明**的有意选择；确实需要跨表时把 `allowCrossTable` 设为 `true`。
 
 另外每个查询都会带上服务端上限：`max_result_rows`（配合 `result_overflow_mode=break` 直接截断）、`max_execution_time`、`max_memory_usage`。
 
@@ -207,7 +227,7 @@ $env:ELECTRON_RUN_AS_NODE = '1'
 ```powershell
 pnpm install
 pnpm typecheck        # 类型检查
-pnpm test             # 离线测试（47 项：护栏、格式化、插件契约、参数校验）
+pnpm test             # 离线测试（52 项：护栏、格式化、插件契约、参数校验）
 pnpm test:live        # 真机联调（14 项，默认连 http://localhost:8123 的 system.tables）
 pnpm test:all
 ```

@@ -63,8 +63,9 @@ Add saichao/dsh-clickhouse — ClickHouse query tools for DSH
 - 7 tools: list databases / list tables / describe table / sample rows / search columns / EXPLAIN / read-only SQL
 - declares dsh.bundle in package.json with cordis.patch.yml at the repo root
 - zero runtime dependencies (Node's built-in fetch only)
-- read-only in two layers: client-side SQL guard (single statement, leading keyword allowlist, write-keyword rejection, no INTO OUTFILE / FORMAT / SETTINGS / external table functions) + server-side max_result_rows / max_execution_time / max_memory_usage
-- verified against ClickHouse 21.12.4.1; 49 offline tests and 14 live tests pass (v0.1.1)
+- read-only in two layers: client-side SQL guard (single statement, leading keyword allowlist, write-keyword rejection, no INTO OUTFILE / FORMAT / SETTINGS / external table functions, single-table by default: JOIN and cross-table references rejected unless allowCrossTable) + server-side max_result_rows / max_execution_time / max_memory_usage
+- single-table by design: the user's parameter is used as given, no built-in multi-step business flow (multi-condition / multi-field LIKE on one table is allowed)
+- verified against ClickHouse 21.12.4.1; 52 offline tests and 14 live tests pass (v0.2.0)
 
 Tested with `dsh plugin --profile desktop add github:saichao/dsh-clickhouse` on DSH 0.2.1-rc.2 (Windows).
 ```
