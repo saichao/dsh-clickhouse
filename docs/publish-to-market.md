@@ -3,6 +3,8 @@
 目标仓库：[`awesome-dsh-plugin/awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)（市场目录 `plugins.json` 的 `source` 字段就是它）。
 规范来源：该仓库的 [`contributing.md`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md)。
 
+**当前状态（2026-10-28 16:35）**：条目已提 PR [#10077](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/10077) —— fork `saichao/awesome-dsh-plugin`，分支 `add-saichao-dsh-clickhouse`，commit `0ecd28e`，内容就是本目录的 `saichao__dsh-clickhouse.yml`。等 CI 与维护者合并；合并后站点重建 `plugins.json`，市场里即可搜到（在那之前，本地快照里出现我们的条目只是排练时手工注入的，不代表线上）。
+
 ## 收录条件与现状
 
 | 要求 | 现状 |
@@ -49,7 +51,7 @@ description:
 要点：
 
 - 文件名必须是 `saichao__<repo>.yml`（两个下划线）。
-- `description` 里含 `: `（ASCII 冒号+空格）必须加引号——上面的文案是中文全角冒号，没有这个问题。
+- ⚠️ `description` 里含 `: `（ASCII 冒号+空格）必须加引号。**英文那条就有**（`targeting ClickHouse alone: seven tools`），所以两条都写成单引号标量；中文全角冒号本来不受影响，加引号也无妨。未加引号时 YAML 直接解析失败（`mapping values are not allowed in this context`），CI 的 `awesome-lint` / 站点构建会红。
 - **不要**写 `npm:` 字段：映射由 registry 自动采集，手写会被校验拒绝。
 - 仓库满 1 天前提 PR 会被 CI 拦（`Repo age`）。
 
@@ -62,7 +64,7 @@ Add saichao/dsh-clickhouse — ClickHouse query tools for DSH
 - declares dsh.bundle in package.json with cordis.patch.yml at the repo root
 - zero runtime dependencies (Node's built-in fetch only)
 - read-only in two layers: client-side SQL guard (single statement, leading keyword allowlist, write-keyword rejection, no INTO OUTFILE / FORMAT / SETTINGS / external table functions) + server-side max_result_rows / max_execution_time / max_memory_usage
-- verified against ClickHouse 21.12; 47 offline tests and 14 live tests pass
+- verified against ClickHouse 21.12.4.1; 49 offline tests and 14 live tests pass (v0.1.1)
 
 Tested with `dsh plugin --profile desktop add github:saichao/dsh-clickhouse` on DSH 0.2.1-rc.2 (Windows).
 ```
