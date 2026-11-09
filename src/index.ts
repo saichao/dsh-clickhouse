@@ -8,7 +8,7 @@
  * 用法（profile 的 `cordis.patch.yml`）：
  * ```yaml
  * - id: clickhouse
- *   name: dsh-clickhouse
+ *   name: @saichao2026/dsh-clickhouse
  *   config:
  *     url: http://localhost:8123
  *     user: default
@@ -29,7 +29,7 @@ import {
 import { createClickHouseTools } from "./tools.js";
 import type { PluginContextLike } from "./types.js";
 
-/** 插件名（profile 补丁层里的 `name` 字段是本包的包名 dsh-clickhouse）。 */
+/** 插件名（profile 补丁层里的 `name` 字段是本包的包名 @saichao2026/dsh-clickhouse）。 */
 export const name = "clickhouse";
 
 /** 依赖工具注册表服务；缺它就没有意义，因此用静态注入。 */
@@ -43,7 +43,7 @@ function guidance(config: ClickHousePluginConfig): string {
     // 默认连接 = 部署方还没配。提前告诉模型，别等第一次查询失败才发现。
     ...(isDefaultConnection(config)
       ? [
-          "⚠️ 上面这个是默认连接，说明插件还没配置。查询报连接失败时不要反复重试：直接告诉用户去 profile 的用户补丁层（`~/.dsh/profiles/<profile>/cordis.patch.yml`）加一段 `- id: clickhouse` / `name: dsh-clickhouse` / `config: { url: http://<主机>:8123, user: default, password: '' }`，改完重启 DSH。",
+          "⚠️ 上面这个是默认连接，说明插件还没配置。查询报连接失败时不要反复重试：直接告诉用户去 profile 的用户补丁层（`~/.dsh/profiles/<profile>/cordis.patch.yml`）加一段 `- id: clickhouse` / `name: @saichao2026/dsh-clickhouse` / `config: { url: http://<主机>:8123, user: default, password: '' }`，改完重启 DSH。",
         ]
       : []),
     "",

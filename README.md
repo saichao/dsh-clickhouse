@@ -7,7 +7,7 @@ ClickHouse query tools for **DSH / DeepSeek Harness**: seven `clickhouse_*` tool
 - **Old-server friendly** — verified against ClickHouse 21.12, including the `system.tables` columns that changed after it, and it tells the model to backtick non-ASCII aliases instead of failing with a bare syntax error.
 
 ```sh
-dsh plugin --profile <profile> add github:<owner>/dsh-clickhouse
+dsh plugin --profile <profile> add @saichao2026/dsh-clickhouse
 ```
 
 配置、工具清单、只读护栏的范围、以及本机验证记录见下文。
@@ -15,13 +15,13 @@ dsh plugin --profile <profile> add github:<owner>/dsh-clickhouse
 ## 三步上手（新用户）
 
 1. **装**：DSH 里 **设置 → 插件**（插件市场）搜 `clickhouse` → 选 `dsh-clickhouse` → 安装。
-   命令行等价写法：`dsh plugin --profile <profile> add github:saichao/dsh-clickhouse`
+   命令行等价写法：`dsh plugin --profile <profile> add @saichao2026/dsh-clickhouse`
 2. **启用 + 重启**：装完在市场里点「启用」，然后重启 DSH。
 3. **配连接**：把下面这段写进 profile 的用户补丁层，再重启一次（写法详见「配置」一节）：
 
 ```yaml
 - id: clickhouse
-  name: dsh-clickhouse
+  name: @saichao2026/dsh-clickhouse
   config: { url: http://<主机>:8123, user: default, password: '' }
 ```
 
@@ -32,7 +32,7 @@ dsh plugin --profile <profile> add github:<owner>/dsh-clickhouse
 还没配置 ClickHouse 连接。请在 profile 的用户补丁层写连接信息：
   ~/.dsh/profiles/<profile>/cordis.patch.yml
   - id: clickhouse
-    name: dsh-clickhouse
+    name: @saichao2026/dsh-clickhouse
     config: { url: http://<主机>:8123, user: default, password: '' }
 ```
 
@@ -46,7 +46,7 @@ dsh plugin --profile <profile> add github:<owner>/dsh-clickhouse
 
 ## 安装（写进 profile）
 
-包本身是一个 **bundle**：自带 `cordis.patch.yml`，内容是一行 `insert: [{ id: clickhouse, name: dsh-clickhouse, config: … }]`。
+包本身是一个 **bundle**：自带 `cordis.patch.yml`，内容是一行 `insert: [{ id: clickhouse, name: @saichao2026/dsh-clickhouse, config: … }]`。
 
 一条命令（幂等，可反复跑）：
 
@@ -58,9 +58,9 @@ node scripts/install.mjs
 
 `install.mjs` 做四件事：
 
-1. 把 `package.json` / `README.md` / `lib` 复制到 `<profile>/node_modules/dsh-clickhouse` 与 `~/.dsh/node_modules/dsh-clickhouse`（后者是 profile 的 `node_modules` 被 pnpm 清理时的兜底解析路径）；
+1. 把 `package.json` / `README.md` / `lib` 复制到 `<profile>/node_modules/@saichao2026/dsh-clickhouse` 与 `~/.dsh/node_modules/@saichao2026/dsh-clickhouse`（后者是 profile 的 `node_modules` 被 pnpm 清理时的兜底解析路径）；
 2. 把部署配置写进两份拷贝的 `cordis.patch.yml`（源仓库那份保持通用、不带 config）；
-3. 确保 `dsh-clickhouse` 在 profile `package.json` 的 `dsh.profile.bundles` 里（**改动前备份到 `backups/`**，临时文件 + rename 原子写）；
+3. 确保 `@saichao2026/dsh-clickhouse` 在 profile `package.json` 的 `dsh.profile.bundles` 里（**改动前备份到 `backups/`**，临时文件 + rename 原子写）；
 4. 跑 `scripts/verify.mjs` 预检。
 
 然后重启 DSH。补丁文件是外部改的，宿主不会热加载它（实测桌面端改完不重启，插件仍按旧配置工作），配置改动一律重启后确认。
@@ -71,11 +71,11 @@ node scripts/install.mjs
 
 ```powershell
 $profile = "$env:USERPROFILE\.dsh\profiles\desktop"
-New-Item -ItemType Directory -Force -Path "$profile\node_modules\dsh-clickhouse" | Out-Null
-Copy-Item package.json, cordis.patch.yml, README.md, lib -Recurse -Force "$profile\node_modules\dsh-clickhouse"
+New-Item -ItemType Directory -Force -Path "$profile\node_modules\@saichao2026/dsh-clickhouse" | Out-Null
+Copy-Item package.json, cordis.patch.yml, README.md, lib -Recurse -Force "$profile\node_modules\@saichao2026/dsh-clickhouse"
 ```
 
-再把 `"dsh-clickhouse"` 追加到 `$profile\package.json` 的 `dsh.profile.bundles`（**先备份这个文件**）。
+再把 `"@saichao2026/dsh-clickhouse"` 追加到 `$profile\package.json` 的 `dsh.profile.bundles`（**先备份这个文件**）。
 
 ## 配置
 
@@ -83,7 +83,7 @@ Copy-Item package.json, cordis.patch.yml, README.md, lib -Recurse -Force "$profi
 
 ```yaml
 - id: clickhouse
-  name: dsh-clickhouse
+  name: @saichao2026/dsh-clickhouse
   config:
     url: http://localhost:8123
     user: default

@@ -30,7 +30,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-const PLUGIN_NAME = "dsh-clickhouse";
+const PLUGIN_NAME = "@saichao2026/dsh-clickhouse";
 const ROW_ID = "clickhouse";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");

@@ -14,7 +14,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PLUGIN_NAME = "dsh-clickhouse";
+const PLUGIN_NAME = "@saichao2026/dsh-clickhouse";
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
 const flag = (name) => {

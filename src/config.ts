@@ -287,7 +287,7 @@ export function configurationHint(): string {
     "还没配置 ClickHouse 连接。请在 profile 的用户补丁层写连接信息：",
     "  ~/.dsh/profiles/<profile>/cordis.patch.yml",
     "  - id: clickhouse",
-    "    name: dsh-clickhouse",
+    "    name: @saichao2026/dsh-clickhouse",
     "    config: { url: http://<主机>:8123, user: default, password: '' }",
     "也可以给插件配置 host / port（或 CLICKHOUSE_HOST / CLICKHOUSE_PORT）；",
     "详见插件 README 的「配置」一节。改完需要重启 DSH。",

@@ -4,4 +4,4 @@
 # （~/.dsh/profiles/<name>/cordis.patch.yml）里按 id 覆盖，而不是写进包里。
 - insert:
     - id: clickhouse
-      name: 'dsh-clickhouse'
+      name: '@saichao2026/dsh-clickhouse'

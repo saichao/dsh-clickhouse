@@ -51,5 +51,5 @@ for (const key of Object.keys(report)) {
 
 // 我关心的结论：dsh-clickhouse 是否出现在组装结果里。
 const text = JSON.stringify(report);
-console.log(`组装结果里提到 dsh-clickhouse: ${text.includes("dsh-clickhouse") ? "是" : "否"}`);
+console.log(`组装结果里提到 dsh-clickhouse: ${text.includes("@saichao2026/dsh-clickhouse") ? "是" : "否"}`);
 console.log(`组装结果里提到 row id clickhouse: ${text.includes('"clickhouse"') ? "是" : "否"}`);

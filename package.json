@@ -1,5 +1,5 @@
 {
-  "name": "dsh-clickhouse",
+  "name": "@saichao2026/dsh-clickhouse",
   "version": "0.2.0",
   "description": "ClickHouse query tools for DSH / DeepSeek Harness: schema exploration plus guarded read-only SQL. 带只读护栏的 ClickHouse 数据问答插件，零运行时依赖。",
   "author": "赛超",
@@ -31,6 +31,10 @@
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
   },
   "engines": {
     "node": ">=20"

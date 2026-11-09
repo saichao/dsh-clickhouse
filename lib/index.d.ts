@@ -8,7 +8,7 @@
  * 用法（profile 的 `cordis.patch.yml`）：
  * ```yaml
  * - id: clickhouse
- *   name: dsh-clickhouse
+ *   name: @saichao2026/dsh-clickhouse
  *   config:
  *     url: http://localhost:8123
  *     user: default
@@ -19,7 +19,7 @@
  * @module dsh-clickhouse
  */
 import type { PluginContextLike } from "./types.js";
-/** 插件名（profile 补丁层里的 `name` 字段是本包的包名 dsh-clickhouse）。 */
+/** 插件名（profile 补丁层里的 `name` 字段是本包的包名 @saichao2026/dsh-clickhouse）。 */
 export declare const name = "clickhouse";
 /** 依赖工具注册表服务；缺它就没有意义，因此用静态注入。 */
 export declare const inject: string[];

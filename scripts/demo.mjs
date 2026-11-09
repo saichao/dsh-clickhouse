@@ -20,7 +20,7 @@ const profileDir = resolve(
     : join(process.env.USERPROFILE ?? homedir(), ".dsh", "profiles", "desktop"),
 );
 
-const patchFile = join(profileDir, "node_modules", "dsh-clickhouse", "cordis.patch.yml");
+const patchFile = join(profileDir, "node_modules", "@saichao2026/dsh-clickhouse", "cordis.patch.yml");
 if (!existsSync(patchFile)) {
   console.error(`找不到已安装的插件：${patchFile}`);
   process.exit(2);
@@ -72,7 +72,7 @@ const shown = redact
 console.log(`插件目录: ${redact ? "<profile>\\node_modules\\dsh-clickhouse" : dirname(patchFile)}`);
 console.log(`生效配置: ${JSON.stringify(shown, null, 2)}\n`);
 
-const pluginUrl = pathToFileURL(join(profileDir, "node_modules", "dsh-clickhouse", "lib", "index.js")).href;
+const pluginUrl = pathToFileURL(join(profileDir, "node_modules", "@saichao2026/dsh-clickhouse", "lib", "index.js")).href;
 const plugin = await import(pluginUrl);
 
 const registered = new Map();

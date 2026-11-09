@@ -23,7 +23,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const PLUGIN_NAME = "dsh-clickhouse";
+const PLUGIN_NAME = "@saichao2026/dsh-clickhouse";
 const EXPECTED_ROW_ID = "clickhouse";
 /** 宿主自带的 bundle：从 DSH 安装目录（app.asar）解析，不在 profile 的 node_modules 里。 */
 const INBOX_BUNDLES = new Set([
