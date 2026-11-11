@@ -5,7 +5,7 @@
  * 查询不再踩 active_parts 缺列的坑、截断标记、渲染文本可读、护栏拦截写操作。
  *
  * 环境变量：
- *   CLICKHOUSE_TEST_URL（默认 http://localhost:8123）
+ *   CLICKHOUSE_TEST_URL（默认 http://10.0.0.34:8123，与插件内置默认一致）
  *   CLICKHOUSE_TEST_USER / CLICKHOUSE_TEST_PASSWORD
  *   CLICKHOUSE_TEST_DATABASE（默认 default）
  *   CLICKHOUSE_TEST_TABLE（默认 system.tables——任何实例都有，不依赖具体业务表）
@@ -24,7 +24,7 @@ import { validate } from "./schema-check.js";
 import type { ToolDefinitionLike } from "../src/types.js";
 
 const config = resolveConfig({
-  url: process.env.CLICKHOUSE_TEST_URL ?? "http://localhost:8123",
+  url: process.env.CLICKHOUSE_TEST_URL ?? "http://10.0.0.34:8123",
   user: process.env.CLICKHOUSE_TEST_USER ?? "default",
   password: process.env.CLICKHOUSE_TEST_PASSWORD ?? "",
   database: process.env.CLICKHOUSE_TEST_DATABASE ?? "default",

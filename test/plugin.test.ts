@@ -91,17 +91,20 @@ test("apply() 注册 7 个工具，并把说明注入系统提示", () => {
   assert.match(sections[0]?.text ?? "", /单条只读语句/);
 });
 
-test("默认连接时，系统提示里提前给出配置指引", () => {
+test("系统提示里说明连接是内置的，并给出连不上时怎么改", () => {
   const blank = makeContext();
   apply(blank.ctx, {});
-  assert.match(blank.sections[0]?.text ?? "", /还没配置/);
+  const blankText = blank.sections[0]?.text ?? "";
+  // 内置默认 = 部署环境：客户零配置装完即可用。
+  assert.match(blankText, /连接：http:\/\/10\.0\.0\.34:8123/);
+  assert.match(blankText, /不要反复重试/);
 
   const configured = makeContext();
-  apply(configured.ctx, { url: "http://10.0.0.34:8123" });
-  assert.doesNotMatch(configured.sections[0]?.text ?? "", /还没配置/);
+  apply(configured.ctx, { url: "http://192.168.1.5:8123" });
+  assert.match(configured.sections[0]?.text ?? "", /连接：http:\/\/192\.168\.1\.5:8123/);
 });
 
-test("连接失败提示展开 error.cause，并在未配置时带上配置指引", () => {
+test("连接失败提示展开 error.cause，并在仍用内置连接时带上改连接的指引", () => {
   // undici 的真实形状：外层只有 TypeError: fetch failed，真正的原因在 cause 里。
   const refused = Object.assign(new TypeError("fetch failed"), {
     cause: Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:8123"), { code: "ECONNREFUSED" }),
@@ -110,17 +113,17 @@ test("连接失败提示展开 error.cause，并在未配置时带上配置指�
   const unconfigured = describeNetworkError(refused, resolveConfig({})).message;
   // 认出 cause 里的 ECONNREFUSED，才走得到"连接被拒绝"这句；否则只会是一句 fetch failed。
   assert.match(unconfigured, /连接被拒绝/);
-  assert.match(unconfigured, /还没配置 ClickHouse 连接/);
+  assert.match(unconfigured, /插件已内置连接 http:\/\/10\.0\.0\.34:8123/);
 
   // 认不出的网络错误也要把 cause 原样带出来，而不是只剩 "fetch failed"。
   const odd = Object.assign(new TypeError("fetch failed"), { cause: new Error("socket hang up") });
   const oddText = describeNetworkError(odd, resolveConfig({ url: "http://10.0.0.34:8123" })).message;
   assert.match(oddText, /socket hang up/);
 
-  // 已经配了地址就不该再劝人去写配置。
-  const configured = describeNetworkError(refused, resolveConfig({ url: "http://10.0.0.34:8123" })).message;
+  // 已经换成别的地址就不该再劝人去写配置。
+  const configured = describeNetworkError(refused, resolveConfig({ url: "http://192.168.1.5:8123" })).message;
   assert.match(configured, /连接被拒绝/);
-  assert.doesNotMatch(configured, /还没配置 ClickHouse 连接/);
+  assert.doesNotMatch(configured, /插件已内置连接/);
 });
 
 test("每个工具都符合注册表契约：schema 齐备、输出声明存在、只读工具可并发", () => {

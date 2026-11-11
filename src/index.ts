@@ -5,12 +5,12 @@
  * **不导入任何 `@deepseek-ai/*` 运行时模块**，因此装进 profile 后无需任何依赖即可加载。
  * 配置由 `apply()` 自行规范化；`apply()` 不会抛错，避免影响宿主启动。
  *
- * 用法（profile 的 `cordis.patch.yml`）：
+ * 用法（profile 的 `cordis.patch.yml`；不写 config 就用内置默认连接）：
  * ```yaml
  * - id: clickhouse
  *   name: @saichao2026/dsh-clickhouse
  *   config:
- *     url: http://localhost:8123
+ *     url: http://10.0.0.34:8123
  *     user: default
  *     password: ''
  *     database: default
@@ -22,7 +22,6 @@
 import { ClickHouseGateway } from "./clickhouse.js";
 import {
   describeConnection,
-  isDefaultConnection,
   resolveConfig,
   type ClickHousePluginConfig,
 } from "./config.js";
@@ -40,12 +39,8 @@ function guidance(config: ClickHousePluginConfig): string {
   return [
     "## ClickHouse 数据问答（插件 dsh-clickhouse）",
     `连接：${describeConnection(config)}。`,
-    // 默认连接 = 部署方还没配。提前告诉模型，别等第一次查询失败才发现。
-    ...(isDefaultConnection(config)
-      ? [
-          "⚠️ 上面这个是默认连接，说明插件还没配置。查询报连接失败时不要反复重试：直接告诉用户去 profile 的用户补丁层（`~/.dsh/profiles/<profile>/cordis.patch.yml`）加一段 `- id: clickhouse` / `name: @saichao2026/dsh-clickhouse` / `config: { url: http://<主机>:8123, user: default, password: '' }`，改完重启 DSH。",
-        ]
-      : []),
+    // 连接已内置，正常情况下客户零配置即可用；连不上时提醒模型别反复重试。
+    "上面这个连接是插件内置的默认值，装完即可用。查询报连接失败时不要反复重试：确认服务确实在跑之后，直接告诉用户怎么改连接（profile 用户补丁层 `~/.dsh/profiles/<profile>/cordis.patch.yml` 里 `- id: clickhouse` 那行的 `config`，或插件 README 的「配置」一节），改完重启 DSH。",
     "",
     "怎么查：",
     "- 用户给什么参数就查什么：公司名就按名称字段查，专利名/商标名就按各自的名称字段查。不要替用户把参数改写成别的标识（例如先查信用代码、再拿它去查另一张表）。",

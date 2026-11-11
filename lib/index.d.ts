@@ -5,12 +5,12 @@
  * **不导入任何 `@deepseek-ai/*` 运行时模块**，因此装进 profile 后无需任何依赖即可加载。
  * 配置由 `apply()` 自行规范化；`apply()` 不会抛错，避免影响宿主启动。
  *
- * 用法（profile 的 `cordis.patch.yml`）：
+ * 用法（profile 的 `cordis.patch.yml`；不写 config 就用内置默认连接）：
  * ```yaml
  * - id: clickhouse
  *   name: @saichao2026/dsh-clickhouse
  *   config:
- *     url: http://localhost:8123
+ *     url: http://10.0.0.34:8123
  *     user: default
  *     password: ''
  *     database: default

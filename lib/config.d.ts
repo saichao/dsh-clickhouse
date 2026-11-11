@@ -8,7 +8,7 @@
  */
 /** 生效的插件配置。 */
 export interface ClickHousePluginConfig {
-    /** ClickHouse HTTP 接口地址，例如 http://localhost:8123 。 */
+    /** ClickHouse HTTP 接口地址，内置默认 http://10.0.0.34:8123 。 */
     url: string;
     user: string;
     password: string;
@@ -44,7 +44,13 @@ export interface ClickHousePluginConfig {
     /** 配置规范化期间发现的问题（非致命）。 */
     warnings: string[];
 }
-/** 默认配置：默认连本机、默认只读、默认 200 行。 */
+/**
+ * 默认配置：默认连部署方的 ClickHouse、默认只读、默认 200 行。
+ *
+ * `url` 直接写死部署环境，客户装完不做任何配置即可用（客户不会配环境）；
+ * 需要指向别的服务器时，用 `url`（或 `host`/`port`，或
+ * `CLICKHOUSE_HOST`/`CLICKHOUSE_PORT`）覆盖即可。
+ */
 export declare const DEFAULT_CONFIG: Omit<ClickHousePluginConfig, "warnings">;
 /** 单次查询的取消/超时上限，避免模型写出一条跑不完的查询把界面卡死。 */
 export declare const HARD_MAX_TIMEOUT_SECONDS = 600;
@@ -71,11 +77,11 @@ export declare function describeConnection(config: ClickHousePluginConfig): stri
 /** 连接信息里不能泄露密码，日志展示用。 */
 export declare function describeConnectionForLog(config: ClickHousePluginConfig): string;
 /**
- * 是否还在用「什么都没填」的默认连接。
+ * 是否还在用「内置的默认连接」（即没有任何配置覆盖）。
  *
- * 默认连接意味着部署方大概率还没配置：这时连不上必须顺带告诉用户去哪儿写配置，
- * 否则新用户只会看到一句连接失败。
+ * 内置默认就是部署方的服务器，正常情况下无需任何配置；一旦连不上，说明目标环境
+ * 与内置值不同，必须顺带告诉用户去哪儿改，否则只会看到一句连接失败。
  */
 export declare function isDefaultConnection(config: ClickHousePluginConfig): boolean;
-/** 「还没配置连接」的指引：错误信息与系统提示共用同一段文字，避免两处走样。 */
+/** 「目标服务器不是内置默认」的指引：错误信息与系统提示共用同一段文字，避免两处走样。 */
 export declare function configurationHint(): string;

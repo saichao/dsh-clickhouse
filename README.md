@@ -12,12 +12,15 @@ dsh plugin --profile <profile> add @saichao2026/dsh-clickhouse
 
 配置、工具清单、只读护栏的范围、以及本机验证记录见下文。
 
-## 三步上手（新用户）
+## 两步上手（新用户）
 
 1. **装**：DSH 里 **设置 → 插件**（插件市场）搜 `clickhouse` → 选 `dsh-clickhouse` → 安装。
    命令行等价写法：`dsh plugin --profile <profile> add @saichao2026/dsh-clickhouse`
 2. **启用 + 重启**：装完在市场里点「启用」，然后重启 DSH。
-3. **配连接**：把下面这段写进 profile 的用户补丁层，再重启一次（写法详见「配置」一节）：
+
+**连接已经内置，装完不用配任何东西。** 默认值是部署环境：`http://10.0.0.34:8123`、用户 `default`、默认库 `default`、只读。客户不会配环境，所以这组默认值直接写死在代码里（`src/config.ts` 的 `DEFAULT_CONFIG`），装完就能查。
+
+只有要连**别的**服务器时才需要配置（写法详见「配置」一节）：
 
 ```yaml
 - id: clickhouse
@@ -25,11 +28,11 @@ dsh plugin --profile <profile> add @saichao2026/dsh-clickhouse
   config: { url: http://<主机>:8123, user: default, password: '' }
 ```
 
-漏了第 3 步会得到很明确的报错，而不是一句 `fetch failed`：
+连不上时得到的是很明确的报错，而不是一句 `fetch failed`：
 
 ```
-无法连接 ClickHouse（http://localhost:8123）：连接被拒绝。请确认服务已启动、端口是 HTTP 接口（默认 8123）而不是原生 TCP 端口（9000）。
-还没配置 ClickHouse 连接。请在 profile 的用户补丁层写连接信息：
+无法连接 ClickHouse（http://10.0.0.34:8123）：连接被拒绝。请确认服务已启动、端口是 HTTP 接口（默认 8123）而不是原生 TCP 端口（9000）。
+插件已内置连接 http://10.0.0.34:8123（用户 default）。确认服务在跑还是连不上时，说明目标服务器不是它，请在 profile 的用户补丁层改：
   ~/.dsh/profiles/<profile>/cordis.patch.yml
   - id: clickhouse
     name: @saichao2026/dsh-clickhouse
@@ -79,13 +82,13 @@ Copy-Item package.json, cordis.patch.yml, README.md, lib -Recurse -Force "$profi
 
 ## 配置
 
-连接信息属于部署方，推荐写在 **profile 的用户补丁层**（`~/.dsh/profiles/<name>/cordis.patch.yml`），按 id 覆盖 bundle 里那一行：
+连接信息**默认已经内置**（见「两步上手」），这一节只讲**要换服务器时**怎么覆盖。覆盖写在 **profile 的用户补丁层**（`~/.dsh/profiles/<name>/cordis.patch.yml`），按 id 替换 bundle 里那一行：
 
 ```yaml
 - id: clickhouse
   name: @saichao2026/dsh-clickhouse
   config:
-    url: http://localhost:8123
+    url: http://<主机>:8123
     user: default
     password: ''
     database: default
@@ -98,7 +101,7 @@ Copy-Item package.json, cordis.patch.yml, README.md, lib -Recurse -Force "$profi
 
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `url` | `http://localhost:8123` | ClickHouse **HTTP** 接口地址。也接受 JDBC 写法：`jdbc:clickhouse://host:8123/db?x=y`（自动转成 `http://host:8123`，路径段当作默认库）。 |
+| `url` | `http://10.0.0.34:8123` | ClickHouse **HTTP** 接口地址，内置默认值就是部署环境（装完免配）。也接受 JDBC 写法：`jdbc:clickhouse://host:8123/db?x=y`（自动转成 `http://host:8123`，路径段当作默认库）。 |
 | `user` / `password` | `default` / 空 | 也兼容 `CLICKHOUSE_USER` / `CLICKHOUSE_PASSWORD` 这类环境变量命名，方便从 MCP 配置直接搬。 |
 | `database` | `default` | 未指定库时的默认库。 |
 | `readonly` | `true` | 为 true 时给每个查询加服务端 `readonly=1`。老版本（如 21.12）上 `numbers()` 等表函数在只读模式下会被拒；确需时设为 `false`（客户端护栏仍然生效）。 |

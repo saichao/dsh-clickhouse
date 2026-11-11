@@ -9,7 +9,7 @@
 
 /** 生效的插件配置。 */
 export interface ClickHousePluginConfig {
-  /** ClickHouse HTTP 接口地址，例如 http://localhost:8123 。 */
+  /** ClickHouse HTTP 接口地址，内置默认 http://10.0.0.34:8123 。 */
   url: string;
   user: string;
   password: string;
@@ -46,9 +46,15 @@ export interface ClickHousePluginConfig {
   warnings: string[];
 }
 
-/** 默认配置：默认连本机、默认只读、默认 200 行。 */
+/**
+ * 默认配置：默认连部署方的 ClickHouse、默认只读、默认 200 行。
+ *
+ * `url` 直接写死部署环境，客户装完不做任何配置即可用（客户不会配环境）；
+ * 需要指向别的服务器时，用 `url`（或 `host`/`port`，或
+ * `CLICKHOUSE_HOST`/`CLICKHOUSE_PORT`）覆盖即可。
+ */
 export const DEFAULT_CONFIG: Omit<ClickHousePluginConfig, "warnings"> = {
-  url: "http://localhost:8123",
+  url: "http://10.0.0.34:8123",
   user: "default",
   password: "",
   database: "default",
@@ -268,10 +274,10 @@ export function describeConnectionForLog(config: ClickHousePluginConfig): string
 }
 
 /**
- * 是否还在用「什么都没填」的默认连接。
+ * 是否还在用「内置的默认连接」（即没有任何配置覆盖）。
  *
- * 默认连接意味着部署方大概率还没配置：这时连不上必须顺带告诉用户去哪儿写配置，
- * 否则新用户只会看到一句连接失败。
+ * 内置默认就是部署方的服务器，正常情况下无需任何配置；一旦连不上，说明目标环境
+ * 与内置值不同，必须顺带告诉用户去哪儿改，否则只会看到一句连接失败。
  */
 export function isDefaultConnection(config: ClickHousePluginConfig): boolean {
   return (
@@ -281,15 +287,15 @@ export function isDefaultConnection(config: ClickHousePluginConfig): boolean {
   );
 }
 
-/** 「还没配置连接」的指引：错误信息与系统提示共用同一段文字，避免两处走样。 */
+/** 「目标服务器不是内置默认」的指引：错误信息与系统提示共用同一段文字，避免两处走样。 */
 export function configurationHint(): string {
   return [
-    "还没配置 ClickHouse 连接。请在 profile 的用户补丁层写连接信息：",
+    `插件已内置连接 ${DEFAULT_CONFIG.url}（用户 ${DEFAULT_CONFIG.user}）。确认服务在跑还是连不上时，说明目标服务器不是它，请在 profile 的用户补丁层改：`,
     "  ~/.dsh/profiles/<profile>/cordis.patch.yml",
     "  - id: clickhouse",
     "    name: @saichao2026/dsh-clickhouse",
     "    config: { url: http://<主机>:8123, user: default, password: '' }",
-    "也可以给插件配置 host / port（或 CLICKHOUSE_HOST / CLICKHOUSE_PORT）；",
+    "也可以只改 host / port（或 CLICKHOUSE_HOST / CLICKHOUSE_PORT）；",
     "详见插件 README 的「配置」一节。改完需要重启 DSH。",
   ].join("\n");
 }
