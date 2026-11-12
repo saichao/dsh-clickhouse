@@ -34,9 +34,15 @@ export interface ClickHousePluginConfig {
    * 业务判断交给模型，插件不预设任何跨表流程。
    */
   allowCrossTable: boolean;
-  /** 只允许访问这些库（为空表示不限制）。 */
+  /** 只允许访问这些库（为空表示不限制）。精确匹配，一般用 allowDatabasePrefixes 就够了。 */
   allowDatabases: string[];
-  /** 禁止访问这些库。 */
+  /**
+   * 只允许访问以这些前缀开头的库（为空表示不限制）。默认 `["open_api_"]`：
+   * 本插件面向 open_api_* 这一层业务库，ETL 中间层（etl_*）、内部库（business_*）默认不可查。
+   * 想放开就把这一项显式设为 `[]`。`system` / `information_schema` 始终放行（元数据查询要用）。
+   */
+  allowDatabasePrefixes: string[];
+  /** 禁止访问这些库（优先级最高）。 */
   denyDatabases: string[];
   /** `clickhouse_sample_rows` 未指定行数时取多少行。 */
   sampleRows: number;
@@ -67,6 +73,8 @@ export const DEFAULT_CONFIG: Omit<ClickHousePluginConfig, "warnings"> = {
   allowExternalSources: false,
   allowCrossTable: false,
   allowDatabases: [],
+  // 部署环境的业务库都在这层；etl_*（ETL 中间层）和 business_*（内部库）默认查不到。
+  allowDatabasePrefixes: ["open_api_"],
   denyDatabases: [],
   sampleRows: 20,
   guidance: true,
@@ -181,6 +189,35 @@ export function normalizeUrl(
 }
 
 /** 把 loader 传来的任意配置规范化成完整配置。永不抛错。 */
+/**
+ * 读 `allowDatabasePrefixes`：与 allowDatabases 不同，这一项**允许显式清空**——
+ * 写成 `[]` 或 `""` 表示不按前缀限制；完全不写才用默认值 `["open_api_"]`。
+ */
+function readDatabasePrefixes(raw: RawConfig, warnings: string[]): string[] {
+  const value = raw.allowDatabasePrefixes;
+  if (value === undefined || value === null) return DEFAULT_CONFIG.allowDatabasePrefixes;
+  const items: string[] = [];
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (typeof item !== "string") {
+        warnings.push("配置项 allowDatabasePrefixes 里含有非字符串项，已忽略");
+        continue;
+      }
+      const trimmed = item.trim();
+      if (trimmed.length > 0) items.push(trimmed);
+    }
+  } else if (typeof value === "string") {
+    for (const part of value.split(",")) {
+      const trimmed = part.trim();
+      if (trimmed.length > 0) items.push(trimmed);
+    }
+  } else {
+    warnings.push(`配置项 allowDatabasePrefixes 应为字符串数组，已忽略（收到 ${typeof value}）`);
+    return DEFAULT_CONFIG.allowDatabasePrefixes;
+  }
+  return items;
+}
+
 export function resolveConfig(raw: unknown): ClickHousePluginConfig {
   const warnings: string[] = [];
   if (raw !== undefined && raw !== null && (typeof raw !== "object" || Array.isArray(raw))) {
@@ -246,6 +283,7 @@ export function resolveConfig(raw: unknown): ClickHousePluginConfig {
     ),
     allowCrossTable: readBoolean(aliased, "allowCrossTable", DEFAULT_CONFIG.allowCrossTable, warnings),
     allowDatabases: readStringArray(aliased, "allowDatabases", warnings),
+    allowDatabasePrefixes: readDatabasePrefixes(aliased, warnings),
     denyDatabases: readStringArray(aliased, "denyDatabases", warnings),
     sampleRows: Math.floor(
       readNumber(aliased, "sampleRows", DEFAULT_CONFIG.sampleRows, { min: 1, max: HARD_MAX_ROWS }, warnings),
@@ -257,13 +295,24 @@ export function resolveConfig(raw: unknown): ClickHousePluginConfig {
   for (const name of config.allowDatabases) {
     if (config.denyDatabases.includes(name)) warnings.push(`库 ${name} 同时在 allowDatabases 和 denyDatabases 里，以 denyDatabases 为准`);
   }
+  for (const prefix of config.allowDatabasePrefixes) {
+    for (const name of config.denyDatabases) {
+      if (name.toLowerCase().startsWith(prefix.toLowerCase())) {
+        warnings.push(`库 ${name} 既在 allowDatabasePrefixes（${prefix}）范围内、又在 denyDatabases 里，以 denyDatabases 为准`);
+      }
+    }
+  }
 
   return config;
 }
 
 /** 一句话描述当前连接（用于工具输出与系统提示）。 */
 export function describeConnection(config: ClickHousePluginConfig): string {
-  return `${config.url}（用户 ${config.user}，默认库 ${config.database}，${config.readonly ? "服务端只读" : "未启用服务端只读"}，单次最多 ${config.maxRows} 行）`;
+  const scope =
+    config.allowDatabasePrefixes.length > 0
+      ? `库范围 ${config.allowDatabasePrefixes.map((prefix) => `${prefix}*`).join(" / ")}`
+      : "不限库";
+  return `${config.url}（用户 ${config.user}，默认库 ${config.database}，${config.readonly ? "服务端只读" : "未启用服务端只读"}，单次最多 ${config.maxRows} 行，${scope}）`;
 }
 
 /** 连接信息里不能泄露密码，日志展示用。 */

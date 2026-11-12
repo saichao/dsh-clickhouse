@@ -33,9 +33,15 @@ export interface ClickHousePluginConfig {
      * 业务判断交给模型，插件不预设任何跨表流程。
      */
     allowCrossTable: boolean;
-    /** 只允许访问这些库（为空表示不限制）。 */
+    /** 只允许访问这些库（为空表示不限制）。精确匹配，一般用 allowDatabasePrefixes 就够了。 */
     allowDatabases: string[];
-    /** 禁止访问这些库。 */
+    /**
+     * 只允许访问以这些前缀开头的库（为空表示不限制）。默认 `["open_api_"]`：
+     * 本插件面向 open_api_* 这一层业务库，ETL 中间层（etl_*）、内部库（business_*）默认不可查。
+     * 想放开就把这一项显式设为 `[]`。`system` / `information_schema` 始终放行（元数据查询要用）。
+     */
+    allowDatabasePrefixes: string[];
+    /** 禁止访问这些库（优先级最高）。 */
     denyDatabases: string[];
     /** `clickhouse_sample_rows` 未指定行数时取多少行。 */
     sampleRows: number;
@@ -70,7 +76,6 @@ export declare function normalizeUrl(input: string, fallbackDatabase: string, wa
     url: string;
     database: string;
 };
-/** 把 loader 传来的任意配置规范化成完整配置。永不抛错。 */
 export declare function resolveConfig(raw: unknown): ClickHousePluginConfig;
 /** 一句话描述当前连接（用于工具输出与系统提示）。 */
 export declare function describeConnection(config: ClickHousePluginConfig): string;

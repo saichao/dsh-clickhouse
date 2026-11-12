@@ -17,7 +17,7 @@ import { test } from "node:test";
 
 import { apply, inject, name as pluginName } from "../src/index.js";
 import { createClickHouseTools } from "../src/tools.js";
-import { ClickHouseGateway, describeNetworkError } from "../src/clickhouse.js";
+import { ClickHouseGateway, assertSqlDatabasesAllowed, describeNetworkError } from "../src/clickhouse.js";
 import { resolveConfig } from "../src/config.js";
 import { extractTableReferences, inspectStatement } from "../src/sql-guard.js";
 import { validate } from "./schema-check.js";
@@ -98,6 +98,9 @@ test("系统提示里说明连接是内置的，并给出连不上时怎么改",
   // 内置默认 = 部署环境：客户零配置装完即可用。
   assert.match(blankText, /连接：http:\/\/10\.0\.0\.34:8123/);
   assert.match(blankText, /不要反复重试/);
+  // 库范围也写进提示，模型一开始就知道只查 open_api_ 开头的库。
+  assert.match(blankText, /库范围 open_api_\*/);
+  assert.match(blankText, /open_api_patent\.dim_patent_main/);
 
   const configured = makeContext();
   apply(configured.ctx, { url: "http://192.168.1.5:8123" });
@@ -190,6 +193,36 @@ test("库白/黑名单在参数层就被拦截（不会发出请求）", async (
     () => describe.execute({ table: "secret.t" }, fakeExec),
     /denyDatabases/,
   );
+});
+
+test("库范围默认只允许 open_api_ 前缀：显式写别的库会被拦，表函数与 system 不受影响", async () => {
+  const config = resolveConfig({});
+  const gateway = new ClickHouseGateway(config);
+  const tools = createClickHouseTools(gateway, config);
+  const describe = tools.find((tool) => tool.name === "clickhouse_describe_table");
+  const sample = tools.find((tool) => tool.name === "clickhouse_sample_rows");
+  assert.ok(describe && sample);
+
+  // SQL 层：显式写了库的引用要落在允许范围内。
+  assertSqlDatabasesAllowed(config, "SELECT count() FROM open_api_patent.dim_patent_main");
+  assertSqlDatabasesAllowed(config, "WITH t AS (SELECT 1 FROM open_api_cms.x) SELECT * FROM t");
+  assert.throws(() => assertSqlDatabasesAllowed(config, "SELECT count() FROM etl_patent.dwd_patent"), /允许的库范围/);
+  assert.throws(() => assertSqlDatabasesAllowed(config, "SELECT count() FROM business_zyt.t"), /允许的库范围/);
+  // 无前缀的表名（按默认库解析）与表函数照旧放行，免得 numbers() 之类被误伤。
+  assertSqlDatabasesAllowed(config, "SELECT count() FROM numbers(10)");
+  assertSqlDatabasesAllowed(config, "SELECT name FROM system.tables");
+
+  // 工具参数层同样受管（参数里显式给了库名就校验）。
+  await assert.rejects(() => describe.execute({ database: "etl_patent", table: "t" }, fakeExec), /允许的库范围/);
+  await assert.rejects(() => sample.execute({ table: "etl_patent.t" }, fakeExec), /允许的库范围/);
+
+  // 显式清空 allowDatabasePrefixes 即放开；精确白名单也仍然有效。
+  const open = resolveConfig({ allowDatabasePrefixes: [] });
+  assert.deepEqual(open.warnings, []);
+  assertSqlDatabasesAllowed(open, "SELECT count() FROM etl_patent.dwd_patent");
+  const exact = resolveConfig({ allowDatabasePrefixes: [], allowDatabases: ["etl_patent"] });
+  assertSqlDatabasesAllowed(exact, "SELECT count() FROM etl_patent.dwd_patent");
+  assert.throws(() => assertSqlDatabasesAllowed(exact, "SELECT count() FROM business_zyt.t"), /allowDatabases/);
 });
 
 test("SQL 护栏在工具层生效：写入语句、多语句、SETTINGS 都被拒绝", async () => {

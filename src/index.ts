@@ -41,6 +41,13 @@ function guidance(config: ClickHousePluginConfig): string {
     `连接：${describeConnection(config)}。`,
     // 连接已内置，正常情况下客户零配置即可用；连不上时提醒模型别反复重试。
     "上面这个连接是插件内置的默认值，装完即可用。查询报连接失败时不要反复重试：确认服务确实在跑之后，直接告诉用户怎么改连接（profile 用户补丁层 `~/.dsh/profiles/<profile>/cordis.patch.yml` 里 `- id: clickhouse` 那行的 `config`，或插件 README 的「配置」一节），改完重启 DSH。",
+    ...(config.allowDatabasePrefixes.length > 0
+      ? [
+          `库范围：只查以 ${config.allowDatabasePrefixes.join(" / ")} 开头的库（业务数据都在这一层），表名一律写成 库.表 全限定名，例如 open_api_patent.dim_patent_main。` +
+            `etl_*（ETL 中间层）、business_*、default 等库会被客户端护栏拒绝；system 库只用于看元数据。` +
+            `确需放开时改 profile 里的 allowDatabasePrefixes（设为 [] 表示不限）。`,
+        ]
+      : []),
     "",
     "怎么查：",
     "- 用户给什么参数就查什么：公司名就按名称字段查，专利名/商标名就按各自的名称字段查。不要替用户把参数改写成别的标识（例如先查信用代码、再拿它去查另一张表）。",

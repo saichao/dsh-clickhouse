@@ -7,7 +7,7 @@
  * 环境变量：
  *   CLICKHOUSE_TEST_URL（默认 http://10.0.0.34:8123，与插件内置默认一致）
  *   CLICKHOUSE_TEST_USER / CLICKHOUSE_TEST_PASSWORD
- *   CLICKHOUSE_TEST_DATABASE（默认 default）
+ *   CLICKHOUSE_TEST_DATABASE（默认 system，始终在插件允许范围内）
  *   CLICKHOUSE_TEST_TABLE（默认 system.tables——任何实例都有，不依赖具体业务表）
  *   CLICKHOUSE_TEST_READONLY=false 可在排查 numbers() 一类查询时关掉服务端只读
  *
@@ -27,7 +27,8 @@ const config = resolveConfig({
   url: process.env.CLICKHOUSE_TEST_URL ?? "http://10.0.0.34:8123",
   user: process.env.CLICKHOUSE_TEST_USER ?? "default",
   password: process.env.CLICKHOUSE_TEST_PASSWORD ?? "",
-  database: process.env.CLICKHOUSE_TEST_DATABASE ?? "default",
+  // system 库始终放行（默认 allowDatabasePrefixes 只放行业务库 open_api_*）。
+  database: process.env.CLICKHOUSE_TEST_DATABASE ?? "system",
   readonly: process.env.CLICKHOUSE_TEST_READONLY !== "false",
   maxRows: 100,
   sampleRows: 3,
@@ -98,7 +99,7 @@ test("clickhouse_describe_table 能列出字段与类型", async () => {
 
 test("clickhouse_describe_table 对不存在的表给出可读错误", async () => {
   await assert.rejects(
-    () => tool("clickhouse_describe_table").execute({ table: "default.definitely_not_a_table_xyz" }, exec),
+    () => tool("clickhouse_describe_table").execute({ table: "system.definitely_not_a_table_xyz" }, exec),
     /不存在/,
   );
 });
@@ -147,12 +148,34 @@ test("clickhouse_search_columns 能按字段名定位表", async () => {
   console.log(`[live] 字段名含 name 的字段数（上限 10）：${value.rowCount}`);
 });
 
+test("库范围护栏：etl_*/business_* 被拒，open_api_*/system 放行", async () => {
+  await assert.rejects(
+    () => tool("clickhouse_query").execute({ sql: "SELECT count() FROM etl_patent.dwd_patent" }, exec),
+    /允许的库范围/,
+  );
+  await assert.rejects(
+    () => tool("clickhouse_list_tables").execute({ database: "business_zyt" }, exec),
+    /允许的库范围/,
+  );
+
+  // 不给库名时列出的表必须都在允许范围内（默认 open_api_ 开头）。
+  const scoped = await call("clickhouse_list_tables", { limit: 200 });
+  const dbIndex = scoped.value.columns.indexOf("database");
+  assert.ok(dbIndex >= 0 && scoped.value.rowCount > 0, "应能在允许范围内列出表");
+  const databases = new Set(scoped.value.rows.map((row) => String(row[dbIndex])));
+  for (const database of databases) assert.match(database, /^open_api_/, `不该出现 ${database}`);
+  console.log(`[live] 默认库范围命中：${[...databases].join(", ")}（${scoped.value.rowCount} 张表）`);
+
+  const { value } = await call("clickhouse_query", { sql: "SELECT count() AS n FROM system.tables" });
+  assert.equal(value.rowCount, 1);
+});
+
 test("截断、空结果、错误码都有可读输出", async () => {
   const empty = await call("clickhouse_query", { sql: "SELECT 1 AS x WHERE 0" });
   assert.equal(empty.value.rowCount, 0);
 
   await assert.rejects(
-    () => tool("clickhouse_query").execute({ sql: "SELECT * FROM default.no_such_table_xyz" }, exec),
+    () => tool("clickhouse_query").execute({ sql: "SELECT * FROM system.no_such_table_xyz" }, exec),
     /ClickHouse 错误 60|UNKNOWN_TABLE|不存在/,
   );
 

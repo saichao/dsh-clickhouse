@@ -60,8 +60,20 @@ export declare function parseServerError(text: string): ClickHouseQueryError | n
  * 导出仅为便于测试。
  */
 export declare function describeNetworkError(error: unknown, config: ClickHousePluginConfig): UserError;
-/** 把库级/库名非法等错误统一成可读提示。 */
+/** 当前允许的库范围，供错误提示复用。 */
+export declare function allowedDatabaseScope(config: ClickHousePluginConfig): string;
+/**
+ * 库级校验：deny 优先，其次 allowDatabases 精确名单，再其次 allowDatabasePrefixes 前缀名单。
+ * `system` / `information_schema` 无条件放行——插件靠它们看元数据。
+ */
 export declare function assertDatabaseAllowed(config: ClickHousePluginConfig, database: string): void;
+/**
+ * 用户 SQL 里**显式写成 `库.表`** 的引用，必须落在允许的库范围内。
+ *
+ * 没写库前缀的表名（含 `numbers()`、`system.numbers` 这类由默认库/系统库解析的写法）不在这里拦：
+ * `extractTableReferences` 在 defaultDatabase 为空时把无前缀引用记成 `.表名`，正好能区分两者。
+ */
+export declare function assertSqlDatabasesAllowed(config: ClickHousePluginConfig, sql: string): void;
 /** 生成 ClickHouse 的反引号标识符，同时挡住注入。 */
 export declare function quoteIdentifier(name: string): string;
 /** 把 `db.table` / `table` 解析成 `{ database, table }`。 */

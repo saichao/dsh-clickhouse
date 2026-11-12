@@ -215,7 +215,14 @@ function likePattern(input: string): string {
   return `%${trimmed.toLowerCase()}%`;
 }
 
-/** 把库过滤条件拼成 SQL 片段（deny 优先，allow 白名单非空时生效）。 */
+/** 库前缀条件：用 startsWith 精确匹配，避免 `open_api_` 里的 `_` 被 LIKE 当成通配符。 */
+function prefixFilter(config: ClickHousePluginConfig, column: string): string[] {
+  if (config.allowDatabasePrefixes.length === 0) return [];
+  const parts = config.allowDatabasePrefixes.map((prefix) => `startsWith(${column}, ${sqlLiteral(prefix)})`);
+  return [`(${parts.join(" OR ")})`];
+}
+
+/** 把库过滤条件拼成 SQL 片段（deny 优先；allow 精确名单与前缀名单都会生效）。 */
 function databaseFilter(config: ClickHousePluginConfig, column: string): string {
   const parts: string[] = [];
   if (config.denyDatabases.length > 0) {
@@ -224,7 +231,20 @@ function databaseFilter(config: ClickHousePluginConfig, column: string): string 
   if (config.allowDatabases.length > 0) {
     parts.push(`${column} IN (${config.allowDatabases.map(sqlLiteral).join(", ")})`);
   }
+  parts.push(...prefixFilter(config, column));
   return parts.length > 0 ? ` AND ${parts.join(" AND ")}` : "";
+}
+
+/**
+ * 没指定库时的默认范围：有前缀/精确白名单就收在范围内（默认就是 open_api_*），
+ * 否则退回插件配置的默认库。
+ */
+function defaultDatabaseScope(config: ClickHousePluginConfig, column: string): string {
+  const options: string[] = prefixFilter(config, column);
+  if (config.allowDatabases.length > 0) {
+    options.push(`${column} IN (${config.allowDatabases.map(sqlLiteral).join(", ")})`);
+  }
+  return options.length > 0 ? `(${options.join(" OR ")})` : `${column} = ${sqlLiteral(config.database)}`;
 }
 
 /** 统一把异常转成可直接展示的用户可读消息。 */
@@ -377,13 +397,17 @@ export function createClickHouseTools(
       isConcurrencySafe: () => true,
       async execute(args, exec) {
         return guarded(async () => {
-          const database = optionalString(args, "database") ?? config.database;
-          assertDatabaseAllowed(config, database);
+          const explicitDatabase = optionalString(args, "database");
+          if (explicitDatabase) assertDatabaseAllowed(config, explicitDatabase);
           const like = optionalString(args, "like");
           const includeInternal = optionalBoolean(args, "include_internal") ?? false;
           const limit = optionalInteger(args, "limit", 1, config.maxRows) ?? config.maxRows;
 
-          const where = [`database = ${sqlLiteral(database)}`];
+          // 没给库名时不只是看默认库，而是列出「允许范围内」的库（默认 open_api_ 开头）。
+          const scopeLabel = explicitDatabase ? `库 ${explicitDatabase}` : "允许范围内的库";
+          const where = [
+            explicitDatabase ? `database = ${sqlLiteral(explicitDatabase)}` : defaultDatabaseScope(config, "database"),
+          ];
           if (like) where.push(`lower(name) LIKE ${sqlLiteral(likePattern(like))}`);
           if (!includeInternal) where.push("name NOT LIKE '.inner%'");
 
@@ -401,15 +425,15 @@ export function createClickHouseTools(
           if (outcome.rows.length === 0) {
             outcome.notes.push(
               like
-                ? `库 ${database} 里没有名字匹配 ${JSON.stringify(like)} 的表；可以去掉 like 再试。`
-                : `库 ${database} 里没有可见的表（可能库名写错，或该库确实为空）。`,
+                ? `${scopeLabel} 里没有名字匹配 ${JSON.stringify(like)} 的表；可以去掉 like 再试。`
+                : `${scopeLabel} 里没有可见的表（可能条件太严、库名为空，或该范围确实没有表）。`,
             );
           } else {
             outcome.notes.push(
               `total_rows / total_bytes 来自 system.tables 的元数据估计，MergeTree 家族之外的表（如 View、Distributed）可能为 NULL。`,
             );
           }
-          return toValue(outcome, summarize(outcome, `库 ${database} 的表`));
+          return toValue(outcome, summarize(outcome, `${scopeLabel} 的表`));
         });
       },
     },
@@ -435,7 +459,8 @@ export function createClickHouseTools(
           const raw = requireString(args, "table");
           const database = optionalString(args, "database");
           const resolved = resolveTableName(raw, database, config.database);
-          assertDatabaseAllowed(config, resolved.database);
+          // 只在用户显式指定了库（或表名写成 库.表）时校验库范围；无前缀时交给“表不存在”的提示。
+          if (database !== undefined || raw.includes(".")) assertDatabaseAllowed(config, resolved.database);
           const sql =
             "SELECT name, type, default_kind, default_expression, is_in_primary_key, is_in_sorting_key, comment\n" +
             "FROM system.columns\n" +
@@ -484,7 +509,8 @@ export function createClickHouseTools(
           const raw = requireString(args, "table");
           const database = optionalString(args, "database");
           const resolved = resolveTableName(raw, database, config.database);
-          assertDatabaseAllowed(config, resolved.database);
+          // 只在用户显式指定了库（或表名写成 库.表）时校验库范围；无前缀时交给“表不存在”的提示。
+          if (database !== undefined || raw.includes(".")) assertDatabaseAllowed(config, resolved.database);
           const rows = optionalInteger(args, "rows", 1, config.maxRows) ?? Math.min(config.sampleRows, config.maxRows);
           const columns = optionalStringArray(args, "columns");
           const projection = columns && columns.length > 0 ? columns.map(quoteIdentifier).join(", ") : "*";

@@ -20,6 +20,8 @@ dsh plugin --profile <profile> add @saichao2026/dsh-clickhouse
 
 **连接已经内置，装完不用配任何东西。** 默认值是部署环境：`http://10.0.0.34:8123`、用户 `default`、默认库 `default`、只读。客户不会配环境，所以这组默认值直接写死在代码里（`src/config.ts` 的 `DEFAULT_CONFIG`），装完就能查。
 
+**库范围同样内置**：默认只允许查询 `open_api_` 开头的库（业务库都在这一层），`etl_*`（ETL 中间层）、`business_*`、`default` 等会被客户端护栏直接拒绝；`system` 库只用于看元数据。表名一律写成 `库.表` 全限定名，例如 `open_api_patent.dim_patent_main`。要放开就改 `allowDatabasePrefixes`（见下表）。
+
 只有要连**别的**服务器时才需要配置（写法详见「配置」一节）：
 
 ```yaml
@@ -112,8 +114,9 @@ Copy-Item package.json, cordis.patch.yml, README.md, lib -Recurse -Force "$profi
 | `allowQuerySettings` | `false` | 是否允许 SQL 自带 `SETTINGS ...`。 |
 | `allowExternalSources` | `false` | 是否允许 `file()`/`url()`/`s3()` 等外部数据源表函数。 |
 | `allowCrossTable` | `false` | 是否允许 JOIN / UNION / 一次引用多张表。默认 `false`：本插件按**单表查询**使用——用户给什么参数就用什么参数，跨表的业务判断不写进插件。 |
-| `allowDatabases` | `[]` | 只允许访问这些库（空 = 不限制）。 |
-| `denyDatabases` | `[]` | 禁止访问的库（优先级高于白名单）。 |
+| `allowDatabases` | `[]` | 只允许访问这些库（空 = 不限制），精确匹配。 |
+| `allowDatabasePrefixes` | `["open_api_"]` | 只允许访问以这些前缀开头的库。默认只放行业务库 `open_api_*`，`etl_*`（ETL 中间层）/`business_*`/`default` 等查不到；`system`、`information_schema` 始终放行（插件看元数据要用）。显式设成 `[]` 表示不按前缀限制。 |
+| `denyDatabases` | `[]` | 禁止访问的库（优先级最高）。 |
 | `sampleRows` | `20` | `clickhouse_sample_rows` 的默认抽样行数。 |
 | `guidance` | `true` | 是否往系统提示里注入一段本插件的使用说明。 |
 
