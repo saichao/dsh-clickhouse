@@ -379,3 +379,39 @@ test("工具层：跨表 SQL 被拒且提示可放开", async () => {
     .catch((error: Error) => error.message);
   assert.match(reason, /allowCrossTable/);
 });
+
+test("发布产物不许带 UTF-8 BOM（带 BOM 的 package.json 会被 dsh 安装校验直接拒绝）", async () => {
+  // 事故回顾：0.2.2 的 package.json 被 PowerShell 写进了 BOM（EF BB BF）。npm 装得上、
+  // ConvertFrom-Json 也读得动（它会自动忽略 BOM），但 dsh 在安装后校验包时是直接
+  // JSON.parse，于是报 `Unexpected token '\uFEFF' … is not valid JSON` 并回滚安装。
+  // 所以发布前必须逐字节检查——这是唯一能拦住它的地方。
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const root = fileURLToPath(new URL("../", import.meta.url));
+
+  const files: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else files.push(full);
+    }
+  };
+  for (const rel of ["package.json", "cordis.patch.yml", "README.md"]) files.push(path.join(root, rel));
+  for (const rel of ["lib", "src"]) walk(path.join(root, rel));
+
+  assert.ok(files.length >= 10, `待检查的发布文件只有 ${files.length} 个，路径可能算错了`);
+
+  const offenders = files.filter((file) => {
+    const head = fs.readFileSync(file).subarray(0, 3);
+    return head.length === 3 && head[0] === 0xef && head[1] === 0xbb && head[2] === 0xbf;
+  });
+  assert.deepEqual(offenders, [], `这些发布文件带 UTF-8 BOM，发布前必须去掉：${offenders.join(", ")}`);
+
+  // package.json 还必须是能被 JSON.parse 直接读的严格 JSON（dsh 就是这么读它的）。
+  const manifest = fs.readFileSync(path.join(root, "package.json"), "utf8");
+  const parsed = JSON.parse(manifest) as { version?: string; dsh?: unknown };
+  assert.equal(typeof parsed.version, "string");
+  assert.ok(parsed.dsh, "package.json 里的 dsh.bundle.patch 声明不能丢");
+});
